@@ -2,6 +2,11 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import joblib
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
 
 st.set_page_config(page_title="ProjectRescue AI", layout="wide")
 
@@ -12,6 +17,18 @@ color_map = {
     "Green": "#2ECC71",
     "Amber": "#F39C12",
     "Red": "#E74C3C"
+}
+
+risk_color_map = {
+    "High": "#E74C3C",
+    "Medium": "#F39C12",
+    "Low": "#2ECC71"
+}
+
+health_icons = {
+    "Green": "🟢 Green",
+    "Amber": "🟠 Amber",
+    "Red": "🔴 Red"
 }
 
 features = [
@@ -35,20 +52,9 @@ def load_model():
 
 model = load_model()
 
-
-def calculate_risk_score(
-    cost_variance_percent,
-    schedule_variance_percent,
-    schedule_variance_days,
-    spi,
-    cpi,
-    completed_tasks_percent,
-    open_risks_count,
-    open_issues_count,
-    scope_changes_count,
-    resource_utilization_percent,
-    stakeholder_sentiment_score
-):
+def calculate_risk_score(cost_variance_percent, schedule_variance_percent, schedule_variance_days, spi, cpi,
+                         completed_tasks_percent, open_risks_count, open_issues_count, scope_changes_count,
+                         resource_utilization_percent, stakeholder_sentiment_score):
     score = 0
     score += max(cost_variance_percent, 0) * 1.2
     score += max(schedule_variance_percent, 0) * 1.3
@@ -73,7 +79,6 @@ def calculate_risk_score(
 
     return round(score, 2)
 
-
 def classify_dimension(value, green_limit, amber_limit, reverse=False):
     if reverse:
         if value >= green_limit:
@@ -88,7 +93,6 @@ def classify_dimension(value, green_limit, amber_limit, reverse=False):
             return "Amber"
         return "Red"
 
-
 def health_breakdown(row):
     return {
         "Schedule Health": classify_dimension(row["schedule_delay_percent"], 5, 15),
@@ -102,7 +106,6 @@ def health_breakdown(row):
         "Stakeholder Health": classify_dimension(row["stakeholder_sentiment_score"], 3.8, 2.8, reverse=True)
     }
 
-
 def get_top_drivers(row):
     drivers = {
         "Cost Variance": row["cost_variance_percent"] * 1.2,
@@ -115,10 +118,8 @@ def get_top_drivers(row):
         "SPI Impact": 15 if row["spi"] < 0.85 else 8 if row["spi"] < 0.95 else 0,
         "CPI Impact": 15 if row["cpi"] < 0.85 else 8 if row["cpi"] < 0.95 else 0
     }
-
     sorted_drivers = sorted(drivers.items(), key=lambda x: x[1], reverse=True)
     return [(name, round(score, 2)) for name, score in sorted_drivers if score > 0][:5]
-
 
 def sanity_check_status(status, row):
     severe_drivers = []
@@ -143,52 +144,31 @@ def sanity_check_status(status, row):
 
     return status, severe_drivers
 
-
 def override_status(prediction, risk_score, spi, cpi, delay_percent, open_risks, open_issues, sentiment):
     if risk_score >= 90 or spi < 0.75 or cpi < 0.75 or delay_percent >= 25:
         return "Red"
 
-    if (
-        risk_score >= 45
-        or spi < 0.92
-        or cpi < 0.92
-        or delay_percent >= 12
-        or open_risks >= 7
-        or open_issues >= 7
-        or sentiment < 3
-    ):
+    if risk_score >= 45 or spi < 0.92 or cpi < 0.92 or delay_percent >= 12 or open_risks >= 7 or open_issues >= 7 or sentiment < 3:
         if prediction == "Green":
             return "Amber"
 
-    if (
-        risk_score <= 25
-        and spi >= 0.95
-        and cpi >= 0.95
-        and sentiment >= 3.8
-        and open_risks <= 3
-        and open_issues <= 3
-    ):
+    if risk_score <= 25 and spi >= 0.95 and cpi >= 0.95 and sentiment >= 3.8 and open_risks <= 3 and open_issues <= 3:
         return "Green"
 
     return prediction
 
-
 def recovery_timeline(status, row):
     if status == "Green":
         return "No recovery required"
-
     if status == "Amber":
         if row["cost_variance_percent"] >= 10 or row["cpi"] < 0.95:
-            return "4–6 weeks"
+            return "4-6 weeks"
         if row["schedule_delay_percent"] >= 10 or row["spi"] < 0.95:
-            return "3–5 weeks"
-        return "2–4 weeks"
-
-    if status == "Red":
-        if row["risk_score"] >= 90 or row["schedule_delay_percent"] >= 25:
-            return "8–12 weeks"
-        return "6–8 weeks"
-
+            return "3-5 weeks"
+        return "2-4 weeks"
+    if row["risk_score"] >= 90 or row["schedule_delay_percent"] >= 25:
+        return "8-12 weeks"
+    return "6-8 weeks"
 
 def escalation_required(status, row):
     if status == "Red":
@@ -198,7 +178,6 @@ def escalation_required(status, row):
     if status == "Amber":
         return "Monitor"
     return "No"
-
 
 def generate_recovery_plan(row, status):
     reasons = []
@@ -261,7 +240,7 @@ def generate_recovery_plan(row, status):
         actions.append("Review workload distribution across the team.")
 
     if row["stakeholder_sentiment_score"] < 2.5:
-        reasons.append(f"Stakeholder sentiment is low at {row['stakeholder_sentiment_score']}/5, indicating confidence or alignment issues.")
+        reasons.append(f"Stakeholder sentiment is low at {row['stakeholder_sentiment_score']}/5.")
         actions.append("Conduct stakeholder alignment meeting and reset communication cadence.")
     elif row["stakeholder_sentiment_score"] < 3.5:
         reasons.append(f"Stakeholder sentiment is neutral at {row['stakeholder_sentiment_score']}/5 and needs improvement.")
@@ -301,28 +280,83 @@ def generate_recovery_plan(row, status):
 
     if status == "Red":
         priority = "High"
-        summary = (
-            f"This {row['project_type']} project is classified as Red due to a risk score of {row['risk_score']}. "
-            f"The project needs immediate recovery action, leadership visibility, and a structured recovery plan. "
-            f"Estimated recovery timeline is {timeline}."
-        )
+        summary = f"This {row['project_type']} project is classified as Red due to a risk score of {row['risk_score']}. Immediate recovery action, leadership visibility, and structured recovery governance are required. Estimated recovery timeline is {timeline}."
     elif status == "Amber":
         priority = "Medium"
-        summary = (
-            f"This {row['project_type']} project is classified as Amber due to emerging delivery concerns. "
-            f"Primary drivers include cost, schedule, risk, stakeholder, or execution indicators that require management attention. "
-            f"The project appears recoverable within {timeline} if corrective actions are taken now."
-        )
+        summary = f"This {row['project_type']} project is classified as Amber. The project appears recoverable within {timeline}, but cost, schedule, risk, stakeholder, or execution indicators require management attention."
     else:
         priority = "Low"
-        summary = (
-            f"This {row['project_type']} project is classified as Green. "
-            f"Cost, schedule, risk, issue, resource, and stakeholder indicators are currently within acceptable PMO tolerance. "
-            f"No recovery plan is required beyond standard monitoring."
-        )
+        summary = f"This {row['project_type']} project is classified as Green. Cost, schedule, risk, issue, resource, and stakeholder indicators are within acceptable PMO tolerance."
 
     return summary, priority, reasons, actions, timeline, escalation
 
+def create_pdf_report(project_name, final_status, confidence, risk_score, priority, timeline, escalation,
+                      summary, dimensions, top_drivers, reasons, actions, result_row):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+
+    story.append(Paragraph("ProjectRescue AI - Project Health Assessment Report", styles["Title"]))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph(f"<b>Project Name:</b> {project_name}", styles["Normal"]))
+    story.append(Paragraph(f"<b>Project Type:</b> {result_row['project_type']}", styles["Normal"]))
+    story.append(Paragraph(f"<b>Final Health Status:</b> {final_status}", styles["Normal"]))
+    story.append(Paragraph(f"<b>ML Confidence:</b> {confidence}%", styles["Normal"]))
+    story.append(Paragraph(f"<b>Risk Score:</b> {risk_score}", styles["Normal"]))
+    story.append(Paragraph(f"<b>Recovery Priority:</b> {priority}", styles["Normal"]))
+    story.append(Paragraph(f"<b>Recovery Timeline:</b> {timeline}", styles["Normal"]))
+    story.append(Paragraph(f"<b>Executive Escalation:</b> {escalation}", styles["Normal"]))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph("Executive Summary", styles["Heading2"]))
+    story.append(Paragraph(summary, styles["Normal"]))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph("Health Breakdown by Dimension", styles["Heading2"]))
+    health_table_data = [["Dimension", "Health"]] + [[k, v] for k, v in dimensions.items()]
+    health_table = Table(health_table_data, colWidths=[230, 230])
+    health_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold")
+    ]))
+    story.append(health_table)
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph("Top Risk Drivers", styles["Heading2"]))
+    driver_table_data = [["Driver", "Impact Score"]] + [[d, str(s)] for d, s in top_drivers]
+    driver_table = Table(driver_table_data, colWidths=[230, 230])
+    driver_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold")
+    ]))
+    story.append(driver_table)
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph("Key Reasons", styles["Heading2"]))
+    for reason in reasons:
+        story.append(Paragraph(f"- {reason}", styles["Normal"]))
+
+    story.append(Spacer(1, 12))
+    story.append(Paragraph("Recommended Recovery Actions", styles["Heading2"]))
+    for action in actions:
+        story.append(Paragraph(f"- {action}", styles["Normal"]))
+
+    story.append(Spacer(1, 12))
+    story.append(Paragraph("Entered Project Metrics", styles["Heading2"]))
+    metrics_data = [[k, str(v)] for k, v in result_row.items()]
+    metrics_table = Table(metrics_data, colWidths=[230, 230])
+    metrics_table.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey)
+    ]))
+    story.append(metrics_table)
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
 
 uploaded_file = st.file_uploader("Upload Project CSV", type=["csv"])
 
@@ -487,20 +521,26 @@ if uploaded_file:
 
         st.markdown("### Health Breakdown by Dimension")
         health_df = pd.DataFrame([
-            {"Dimension": key, "Health": value} for key, value in dimensions.items()
+            {"Dimension": key, "Health": health_icons[value]}
+            for key, value in dimensions.items()
         ])
         st.dataframe(health_df, use_container_width=True)
 
         st.markdown("### Top Risk Drivers / Feature Importance")
         if top_drivers:
             driver_df = pd.DataFrame(top_drivers, columns=["Driver", "Impact Score"])
+            driver_df["Risk Level"] = driver_df["Impact Score"].apply(
+                lambda x: "High" if x >= 15 else "Medium" if x >= 8 else "Low"
+            )
             st.dataframe(driver_df, use_container_width=True)
 
             fig_driver = px.bar(
                 driver_df,
                 x="Driver",
                 y="Impact Score",
+                color="Risk Level",
                 title="Top Risk Drivers",
+                color_discrete_map=risk_color_map
             )
             st.plotly_chart(fig_driver, use_container_width=True)
         else:
@@ -518,6 +558,30 @@ if uploaded_file:
         st.markdown("### Recommended Recovery Actions")
         for action in actions:
             st.write(f"- {action}")
+
+        st.markdown("### Export Assessment Report")
+        pdf_buffer = create_pdf_report(
+            project_name,
+            final_status,
+            confidence,
+            risk_score,
+            priority,
+            timeline,
+            escalation,
+            summary,
+            dimensions,
+            top_drivers,
+            reasons,
+            actions,
+            result_row
+        )
+
+        st.download_button(
+            label="📄 Download PDF Report",
+            data=pdf_buffer,
+            file_name=f"{project_name.replace(' ', '_')}_assessment_report.pdf",
+            mime="application/pdf"
+        )
 
         st.markdown("### Entered Project Metrics")
         output_df = pd.DataFrame([{
