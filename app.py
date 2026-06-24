@@ -50,7 +50,6 @@ def calculate_risk_score(
     stakeholder_sentiment_score
 ):
     score = 0
-
     score += max(cost_variance_percent, 0) * 1.2
     score += max(schedule_variance_percent, 0) * 1.3
     score += open_risks_count * 2.5
@@ -75,27 +74,67 @@ def calculate_risk_score(
     return round(score, 2)
 
 
+def classify_dimension(value, green_limit, amber_limit, reverse=False):
+    if reverse:
+        if value >= green_limit:
+            return "Green"
+        elif value >= amber_limit:
+            return "Amber"
+        return "Red"
+    else:
+        if value <= green_limit:
+            return "Green"
+        elif value <= amber_limit:
+            return "Amber"
+        return "Red"
+
+
+def health_breakdown(row):
+    return {
+        "Schedule Health": classify_dimension(row["schedule_delay_percent"], 5, 15),
+        "Cost Health": classify_dimension(row["cost_variance_percent"], 5, 15),
+        "SPI Health": classify_dimension(row["spi"], 0.95, 0.85, reverse=True),
+        "CPI Health": classify_dimension(row["cpi"], 0.95, 0.85, reverse=True),
+        "Risk Health": classify_dimension(row["open_risks_count"], 3, 8),
+        "Issue Health": classify_dimension(row["open_issues_count"], 3, 8),
+        "Scope Health": classify_dimension(row["scope_changes_count"], 2, 5),
+        "Resource Health": classify_dimension(row["resource_utilization_percent"], 85, 95),
+        "Stakeholder Health": classify_dimension(row["stakeholder_sentiment_score"], 3.8, 2.8, reverse=True)
+    }
+
+
+def get_top_drivers(row):
+    drivers = {
+        "Cost Variance": row["cost_variance_percent"] * 1.2,
+        "Schedule Delay %": row["schedule_delay_percent"] * 1.3,
+        "Open Risks": row["open_risks_count"] * 2.5,
+        "Open Issues": row["open_issues_count"] * 2.0,
+        "Scope Changes": row["scope_changes_count"] * 3.0,
+        "Resource Overload": max(row["resource_utilization_percent"] - 80, 0) * 1.1,
+        "Stakeholder Concern": (5 - row["stakeholder_sentiment_score"]) * 8,
+        "SPI Impact": 15 if row["spi"] < 0.85 else 8 if row["spi"] < 0.95 else 0,
+        "CPI Impact": 15 if row["cpi"] < 0.85 else 8 if row["cpi"] < 0.95 else 0
+    }
+
+    sorted_drivers = sorted(drivers.items(), key=lambda x: x[1], reverse=True)
+    return [(name, round(score, 2)) for name, score in sorted_drivers if score > 0][:5]
+
+
 def sanity_check_status(status, row):
     severe_drivers = []
 
     if row["cost_variance_percent"] >= 20:
         severe_drivers.append("Cost variance is severe")
-
     if row["schedule_delay_percent"] >= 25:
         severe_drivers.append("Schedule delay is severe compared to project duration")
-
     if row["spi"] < 0.85:
         severe_drivers.append("SPI is critically low")
-
     if row["cpi"] < 0.85:
         severe_drivers.append("CPI is critically low")
-
     if row["open_risks_count"] >= 10:
         severe_drivers.append("Open risk count is high")
-
     if row["open_issues_count"] >= 10:
         severe_drivers.append("Open issue count is high")
-
     if row["stakeholder_sentiment_score"] < 2.5:
         severe_drivers.append("Stakeholder sentiment is low")
 
@@ -134,19 +173,42 @@ def override_status(prediction, risk_score, spi, cpi, delay_percent, open_risks,
     return prediction
 
 
+def recovery_timeline(status, row):
+    if status == "Green":
+        return "No recovery required"
+
+    if status == "Amber":
+        if row["cost_variance_percent"] >= 10 or row["cpi"] < 0.95:
+            return "4–6 weeks"
+        if row["schedule_delay_percent"] >= 10 or row["spi"] < 0.95:
+            return "3–5 weeks"
+        return "2–4 weeks"
+
+    if status == "Red":
+        if row["risk_score"] >= 90 or row["schedule_delay_percent"] >= 25:
+            return "8–12 weeks"
+        return "6–8 weeks"
+
+
+def escalation_required(status, row):
+    if status == "Red":
+        return "Yes"
+    if row["cost_variance_percent"] >= 20 or row["open_risks_count"] >= 10 or row["stakeholder_sentiment_score"] < 2.5:
+        return "Yes"
+    if status == "Amber":
+        return "Monitor"
+    return "No"
+
+
 def generate_recovery_plan(row, status):
     reasons = []
     actions = []
 
     if row["schedule_delay_percent"] >= 20 or row["schedule_variance_days"] >= 30:
-        reasons.append(
-            f"Schedule delay is significant at {row['schedule_variance_days']} days, equal to {row['schedule_delay_percent']}% of planned duration."
-        )
+        reasons.append(f"Schedule delay is significant at {row['schedule_variance_days']} days, equal to {row['schedule_delay_percent']}% of planned duration.")
         actions.append("Rebaseline the delivery plan and split remaining work into recovery milestones.")
     elif row["schedule_delay_percent"] >= 10 or row["schedule_variance_days"] >= 15:
-        reasons.append(
-            f"Schedule delay is moderate at {row['schedule_variance_days']} days and requires management attention."
-        )
+        reasons.append(f"Schedule delay is moderate at {row['schedule_variance_days']} days and requires management attention.")
         actions.append("Review milestone dependencies and remove blockers affecting the critical path.")
 
     if row["spi"] < 0.85:
@@ -157,14 +219,10 @@ def generate_recovery_plan(row, status):
         actions.append("Review sprint velocity or milestone delivery performance.")
 
     if row["cost_variance_percent"] >= 20:
-        reasons.append(
-            f"Cost variance is high at {row['cost_variance_percent']}%, which may require budget escalation."
-        )
+        reasons.append(f"Cost variance is high at {row['cost_variance_percent']}%, which may require budget escalation.")
         actions.append("Perform budget impact analysis and stop non-essential spending.")
     elif row["cost_variance_percent"] >= 10:
-        reasons.append(
-            f"Cost variance is moderate at {row['cost_variance_percent']}% and should be reviewed."
-        )
+        reasons.append(f"Cost variance is moderate at {row['cost_variance_percent']}% and should be reviewed.")
         actions.append("Review vendor/resource costs and validate remaining forecast.")
 
     if row["cpi"] < 0.85:
@@ -203,26 +261,18 @@ def generate_recovery_plan(row, status):
         actions.append("Review workload distribution across the team.")
 
     if row["stakeholder_sentiment_score"] < 2.5:
-        reasons.append(
-            f"Stakeholder sentiment is low at {row['stakeholder_sentiment_score']}/5, indicating confidence or alignment issues."
-        )
+        reasons.append(f"Stakeholder sentiment is low at {row['stakeholder_sentiment_score']}/5, indicating confidence or alignment issues.")
         actions.append("Conduct stakeholder alignment meeting and reset communication cadence.")
     elif row["stakeholder_sentiment_score"] < 3.5:
-        reasons.append(
-            f"Stakeholder sentiment is neutral at {row['stakeholder_sentiment_score']}/5 and needs improvement."
-        )
+        reasons.append(f"Stakeholder sentiment is neutral at {row['stakeholder_sentiment_score']}/5 and needs improvement.")
         actions.append("Increase stakeholder updates and clarify expectations.")
 
-    if row["project_type"] == "Procurement Automation" and (
-        row["cost_variance_percent"] >= 10 or row["cpi"] < 0.95
-    ):
+    if row["project_type"] == "Procurement Automation" and (row["cost_variance_percent"] >= 10 or row["cpi"] < 0.95):
         actions.append("Reforecast Estimate at Completion for procurement spend.")
         actions.append("Review vendor contracts, invoices, and approval delays.")
         actions.append("Freeze non-essential procurement requests until budget variance is controlled.")
 
-    if row["project_type"] == "Cloud Migration" and (
-        row["schedule_delay_percent"] >= 10 or row["spi"] < 0.95
-    ):
+    if row["project_type"] == "Cloud Migration" and (row["schedule_delay_percent"] >= 10 or row["spi"] < 0.95):
         actions.append("Review migration wave plan, cutover readiness, and rollback strategy.")
 
     if row["project_type"] == "ERP Implementation" and status in ["Amber", "Red"]:
@@ -246,25 +296,32 @@ def generate_recovery_plan(row, status):
             "Track risks, issues, and stakeholder communication."
         ]
 
-    if status == "Red":
-        summary = (
-            f"This {row['project_type']} project requires immediate recovery action and leadership visibility. "
-            f"Primary concerns are reflected in a risk score of {row['risk_score']}."
-        )
-        priority = "High"
-    elif status == "Amber":
-        summary = (
-            f"This {row['project_type']} project requires management attention but appears recoverable with corrective action. "
-            f"Primary concern areas should be reviewed before they escalate."
-        )
-        priority = "Medium"
-    else:
-        summary = (
-            f"This {row['project_type']} project appears stable and should continue under standard PMO monitoring."
-        )
-        priority = "Low"
+    timeline = recovery_timeline(status, row)
+    escalation = escalation_required(status, row)
 
-    return summary, priority, reasons, actions
+    if status == "Red":
+        priority = "High"
+        summary = (
+            f"This {row['project_type']} project is classified as Red due to a risk score of {row['risk_score']}. "
+            f"The project needs immediate recovery action, leadership visibility, and a structured recovery plan. "
+            f"Estimated recovery timeline is {timeline}."
+        )
+    elif status == "Amber":
+        priority = "Medium"
+        summary = (
+            f"This {row['project_type']} project is classified as Amber due to emerging delivery concerns. "
+            f"Primary drivers include cost, schedule, risk, stakeholder, or execution indicators that require management attention. "
+            f"The project appears recoverable within {timeline} if corrective actions are taken now."
+        )
+    else:
+        priority = "Low"
+        summary = (
+            f"This {row['project_type']} project is classified as Green. "
+            f"Cost, schedule, risk, issue, resource, and stakeholder indicators are currently within acceptable PMO tolerance. "
+            f"No recovery plan is required beyond standard monitoring."
+        )
+
+    return summary, priority, reasons, actions, timeline, escalation
 
 
 uploaded_file = st.file_uploader("Upload Project CSV", type=["csv"])
@@ -284,23 +341,11 @@ if uploaded_file:
     col_left, col_right = st.columns(2)
 
     with col_left:
-        fig1 = px.pie(
-            df,
-            names="status",
-            title="Project Health Distribution",
-            color="status",
-            color_discrete_map=color_map
-        )
+        fig1 = px.pie(df, names="status", title="Project Health Distribution", color="status", color_discrete_map=color_map)
         st.plotly_chart(fig1, use_container_width=True)
 
     with col_right:
-        fig2 = px.histogram(
-            df,
-            x="risk_score",
-            color="status",
-            title="Risk Score Distribution",
-            color_discrete_map=color_map
-        )
+        fig2 = px.histogram(df, x="risk_score", color="status", title="Risk Score Distribution", color_discrete_map=color_map)
         st.plotly_chart(fig2, use_container_width=True)
 
     fig3 = px.scatter(
@@ -417,8 +462,9 @@ if uploaded_file:
         }
 
         final_status, severe_drivers = sanity_check_status(final_status, result_row)
-
-        summary, priority, reasons, actions = generate_recovery_plan(result_row, final_status)
+        summary, priority, reasons, actions, timeline, escalation = generate_recovery_plan(result_row, final_status)
+        dimensions = health_breakdown(result_row)
+        top_drivers = get_top_drivers(result_row)
 
         st.subheader("Assessment Result")
 
@@ -429,13 +475,36 @@ if uploaded_file:
         else:
             st.error("Predicted Project Health: 🔴 Red")
 
-        col_x, col_y, col_z = st.columns(3)
+        col_x, col_y, col_z, col_w, col_v = st.columns(5)
         col_x.metric("ML Confidence", f"{confidence}%")
         col_y.metric("Risk Score", risk_score)
         col_z.metric("Recovery Priority", priority)
+        col_w.metric("Recovery Timeline", timeline)
+        col_v.metric("Executive Escalation", escalation)
 
         st.markdown("### Executive Summary")
         st.write(summary)
+
+        st.markdown("### Health Breakdown by Dimension")
+        health_df = pd.DataFrame([
+            {"Dimension": key, "Health": value} for key, value in dimensions.items()
+        ])
+        st.dataframe(health_df, use_container_width=True)
+
+        st.markdown("### Top Risk Drivers / Feature Importance")
+        if top_drivers:
+            driver_df = pd.DataFrame(top_drivers, columns=["Driver", "Impact Score"])
+            st.dataframe(driver_df, use_container_width=True)
+
+            fig_driver = px.bar(
+                driver_df,
+                x="Driver",
+                y="Impact Score",
+                title="Top Risk Drivers",
+            )
+            st.plotly_chart(fig_driver, use_container_width=True)
+        else:
+            st.write("No major risk drivers detected.")
 
         if severe_drivers:
             st.markdown("### Severe Drivers")
@@ -456,13 +525,15 @@ if uploaded_file:
             "ml_prediction": prediction,
             "final_status": final_status,
             "ml_confidence_percent": confidence,
-            "recovery_priority": priority
+            "recovery_priority": priority,
+            "recovery_timeline": timeline,
+            "executive_escalation": escalation
         }])
-        st.dataframe(output_df)
+        st.dataframe(output_df, use_container_width=True)
 
     st.markdown("---")
     st.subheader("Project Data Preview")
-    st.dataframe(df.head(20))
+    st.dataframe(df.head(20), use_container_width=True)
 
 else:
     st.info("Please upload the project CSV file to view dashboard and use manual assessment.")
