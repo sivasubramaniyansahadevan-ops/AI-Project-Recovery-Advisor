@@ -6,6 +6,7 @@ import joblib
 from io import BytesIO
 import matplotlib.pyplot as plt
 import urllib.parse
+from xml.sax.saxutils import escape
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
@@ -1534,6 +1535,195 @@ def portfolio_recovery_actions(assessed_df):
     return actions
 
 
+
+
+def dataframe_to_reportlab_table(df, max_rows=20, max_cols=8):
+    """Convert a dataframe slice into a ReportLab table with safe string values."""
+    safe_df = df.copy().head(max_rows)
+    safe_df = safe_df.iloc[:, :max_cols]
+    data = [list(safe_df.columns)] + safe_df.astype(str).values.tolist()
+    table = Table(data, repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#202020")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#CCCCCC")),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 7),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F5F5F5")]),
+    ]))
+    return table
+
+
+def matplotlib_buffer(fig):
+    buf = BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight", dpi=170)
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+def create_portfolio_status_chart(assessed_df):
+    counts = assessed_df["portfolio_health"].value_counts().reindex(["On Track", "Watchlist", "Critical"]).fillna(0)
+    fig, ax = plt.subplots(figsize=(6.5, 3.6))
+    colors_list = [color_map["On Track"], color_map["Watchlist"], color_map["Critical"]]
+    ax.pie(counts.values, labels=counts.index, autopct=lambda p: f"{p:.0f}%" if p > 0 else "", colors=colors_list, startangle=90)
+    ax.set_title("Portfolio Health Distribution", fontweight="bold")
+    return matplotlib_buffer(fig)
+
+
+def create_portfolio_dimension_chart(assessed_df):
+    dim_df = portfolio_dimension_dataframe(assessed_df)
+    counts = dim_df.groupby(["Dimension", "Health"]).size().unstack(fill_value=0).reindex(columns=["On Track", "Watchlist", "Critical"], fill_value=0)
+    fig, ax = plt.subplots(figsize=(7.2, 4.2))
+    bottom = None
+    for health in ["On Track", "Watchlist", "Critical"]:
+        vals = counts[health].values
+        ax.bar(counts.index, vals, bottom=bottom, label=health, color=color_map[health])
+        bottom = vals if bottom is None else bottom + vals
+    ax.set_title("Portfolio Dimension Health Distribution", fontweight="bold")
+    ax.set_ylabel("Project Count")
+    ax.tick_params(axis="x", rotation=25)
+    ax.legend(title="Health")
+    return matplotlib_buffer(fig)
+
+
+def create_kpi_exposure_chart(driver_summary):
+    df = driver_summary.head(8).copy()
+    x = range(len(df))
+    fig, ax = plt.subplots(figsize=(7.2, 4.0))
+    width = 0.38
+    ax.bar([i - width/2 for i in x], df["Critical Projects"], width=width, label="Critical Projects", color=color_map["Critical Projects"])
+    ax.bar([i + width/2 for i in x], df["Watchlist Projects"], width=width, label="Watchlist Projects", color=color_map["Watchlist Projects"])
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(df["Driver"], rotation=25, ha="right")
+    ax.set_ylabel("Number of Projects")
+    ax.set_title("Critical & Watchlist Exposure by KPI", fontweight="bold")
+    ax.legend(title="Exposure Level")
+    return matplotlib_buffer(fig)
+
+
+def create_matrix_chart(matrix_df, title, x_label, y_label):
+    # Color by severity position, not count volume.
+    fig, ax = plt.subplots(figsize=(6.6, 4.0))
+    severity = []
+    for row_label in matrix_df.index:
+        row_vals = []
+        for col_label in matrix_df.columns:
+            labels = [row_label, col_label]
+            if "Critical" in labels or "High Risk" in labels or "Weak" in labels:
+                row_vals.append(2)
+            elif "Watchlist" in labels or "Medium Risk" in labels or "Developing" in labels:
+                row_vals.append(1)
+            else:
+                row_vals.append(0)
+        severity.append(row_vals)
+    cmap = plt.matplotlib.colors.ListedColormap([color_map["On Track"], color_map["Watchlist"], color_map["Critical"]])
+    ax.imshow(severity, cmap=cmap, vmin=0, vmax=2)
+    ax.set_xticks(range(len(matrix_df.columns)))
+    ax.set_yticks(range(len(matrix_df.index)))
+    ax.set_xticklabels(matrix_df.columns, rotation=20, ha="right")
+    ax.set_yticklabels(matrix_df.index)
+    ax.set_xlabel(x_label, fontweight="bold")
+    ax.set_ylabel(y_label, fontweight="bold")
+    ax.set_title(title, fontweight="bold")
+    for i, row_label in enumerate(matrix_df.index):
+        for j, col_label in enumerate(matrix_df.columns):
+            ax.text(j, i, str(int(matrix_df.loc[row_label, col_label])), ha="center", va="center", color="white", fontweight="bold", fontsize=12)
+    return matplotlib_buffer(fig)
+
+
+def create_portfolio_pdf_report(assessed_df, portfolio_file_name=None):
+    """Create an executive portfolio PDF report including summary, charts, matrices, actions, and watchlist."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=28, leftMargin=28, topMargin=28, bottomMargin=28)
+    styles = getSampleStyleSheet()
+    story = []
+
+    total_projects = len(assessed_df)
+    critical_projects = int((assessed_df["final_status"] == "Red").sum())
+    watchlist_projects = int((assessed_df["final_status"] == "Amber").sum())
+    ontrack_projects = int((assessed_df["final_status"] == "Green").sum())
+    avg_risk = round(assessed_df["risk_score"].mean(), 2)
+    avg_raid = round(assessed_df["raid_maturity_score"].mean(), 1)
+    total_bac = float(assessed_df["budget_at_completion"].sum()) if "budget_at_completion" in assessed_df else 0
+    total_eac = float(assessed_df["eac"].sum()) if "eac" in assessed_df else 0
+    total_vac = float(assessed_df["vac"].sum()) if "vac" in assessed_df else 0
+
+    story.append(Paragraph("ProjectRescue AI - Portfolio Assessment Report", styles["Title"]))
+    if portfolio_file_name:
+        story.append(Paragraph(f"<b>Analyzed File:</b> {escape(str(portfolio_file_name))}", styles["Normal"]))
+    story.append(Spacer(1, 10))
+
+    summary_rows = [
+        ["Total Projects", total_projects, "Critical Projects", critical_projects],
+        ["Watchlist Projects", watchlist_projects, "On Track Projects", ontrack_projects],
+        ["Average Risk Score", avg_risk, "Average RAID Maturity", f"{avg_raid}/100"],
+        ["Total BAC", f"{total_bac:,.0f}", "Total EAC", f"{total_eac:,.0f}"],
+        ["Total VAC", f"{total_vac:,.0f}", "", ""],
+    ]
+    story.append(Table(summary_rows, colWidths=[115, 100, 115, 100], style=TableStyle([
+        ("GRID", (0,0), (-1,-1), 0.25, colors.HexColor("#CCCCCC")),
+        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#F7F7F7")),
+        ("FONTNAME", (0,0), (-1,-1), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 8),
+    ])))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph("Executive Summary", styles["Heading2"]))
+    story.append(Paragraph(
+        f"This portfolio contains {total_projects} projects: {ontrack_projects} On Track, "
+        f"{watchlist_projects} Watchlist, and {critical_projects} Critical. Average risk score is {avg_risk}, "
+        f"average RAID maturity is {avg_raid}/100, and total forecast variance at completion is {total_vac:,.0f}.",
+        styles["Normal"]
+    ))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph("Portfolio Charts", styles["Heading2"]))
+    story.append(Image(create_portfolio_status_chart(assessed_df), width=470, height=260))
+    story.append(Spacer(1, 8))
+    story.append(Image(create_portfolio_dimension_chart(assessed_df), width=500, height=280))
+    story.append(Spacer(1, 8))
+
+    driver_summary = portfolio_kpi_driver_summary(assessed_df)
+    story.append(Paragraph("Top Portfolio KPI Risk Drivers", styles["Heading2"]))
+    story.append(dataframe_to_reportlab_table(driver_summary, max_rows=8, max_cols=4))
+    story.append(Spacer(1, 8))
+    story.append(Image(create_kpi_exposure_chart(driver_summary), width=500, height=280))
+    story.append(Spacer(1, 8))
+
+    schedule_cost_matrix = portfolio_health_matrix(assessed_df)
+    priority_matrix = portfolio_priority_matrix(assessed_df)
+    story.append(Paragraph("Portfolio Matrix View", styles["Heading2"]))
+    story.append(Image(create_matrix_chart(schedule_cost_matrix, "Schedule-Cost Exposure Matrix", "Cost Performance", "Schedule Performance"), width=470, height=285))
+    story.append(Spacer(1, 6))
+    story.append(dataframe_to_reportlab_table(schedule_cost_matrix.reset_index(), max_rows=10, max_cols=5))
+    story.append(Spacer(1, 10))
+    story.append(Image(create_matrix_chart(priority_matrix, "Recovery Priority Matrix", "RAID Maturity", "Risk Score Band"), width=470, height=285))
+    story.append(Spacer(1, 6))
+    story.append(dataframe_to_reportlab_table(priority_matrix.reset_index(), max_rows=10, max_cols=5))
+
+    story.append(Spacer(1, 12))
+    story.append(Paragraph("Portfolio Recovery Actions", styles["Heading2"]))
+    for action in portfolio_recovery_actions(assessed_df):
+        story.append(Paragraph(f"- {escape(str(action))}", styles["Normal"]))
+
+    story.append(Spacer(1, 12))
+    story.append(Paragraph("Critical Project Watchlist", styles["Heading2"]))
+    watch_cols = [
+        "project_name", "project_type", "portfolio_health", "risk_score", "recovery_priority",
+        "executive_escalation", "spi", "cpi", "cost_variance_percent", "schedule_delay_percent",
+        "eac", "vac", "raid_maturity_score", "open_risks_count", "open_issues_count"
+    ]
+    available_cols = [c for c in watch_cols if c in assessed_df.columns]
+    priority_df = assessed_df.sort_values(["final_status", "risk_score"], ascending=[False, False])[available_cols]
+    story.append(dataframe_to_reportlab_table(priority_df, max_rows=25, max_cols=8))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+
 def render_portfolio_results(assessed_df, portfolio_file_name=None):
     """Detailed portfolio view matching the depth of Single Project Assessment."""
     st.markdown('<div class="panel">', unsafe_allow_html=True)
@@ -1798,15 +1988,17 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     priority_df = assessed_df.sort_values(["final_status", "risk_score"], ascending=[False, False])[available_cols]
     st.dataframe(priority_df.head(25), use_container_width=True, hide_index=True)
 
-    st.markdown("### Assessed Project Results")
-    st.dataframe(assessed_df, use_container_width=True)
+    st.markdown("### Download Portfolio Report")
+    st.caption("The report includes the executive summary, portfolio EVM forecast, RAID maturity, health distribution, KPI exposure, matrix views, recovery actions, and critical project watchlist.")
+
+    portfolio_pdf_buffer = create_portfolio_pdf_report(assessed_df, portfolio_file_name)
 
     st.download_button(
-        "Download Detailed Assessed CSV",
-        data=assessed_df.to_csv(index=False).encode("utf-8"),
-        file_name="project_rescue_detailed_portfolio_results.csv",
-        mime="text/csv",
-        key="download_portfolio_csv"
+        "Download Report",
+        data=portfolio_pdf_buffer,
+        file_name="project_rescue_portfolio_assessment_report.pdf",
+        mime="application/pdf",
+        key="download_portfolio_pdf_report"
     )
 
     st.markdown("</div>", unsafe_allow_html=True)
@@ -1859,29 +2051,40 @@ with tab_csv:
         if uploaded_file is None:
             st.warning("Please upload a CSV file first.")
         else:
-            df = pd.read_csv(uploaded_file)
-            assessed_rows = []
+            progress_placeholder = st.empty()
+            with st.spinner("Generating portfolio assessment... Please wait while ProjectRescue AI analyzes the CSV, calculates EVM forecasts, RAID maturity, matrices, and recovery actions."):
+                df = pd.read_csv(uploaded_file)
+                assessed_rows = []
+                total_rows = len(df)
+                progress_bar = progress_placeholder.progress(0, text="Starting portfolio assessment...")
 
-            for _, r in df.iterrows():
-                try:
-                    result_row, prediction, final_status, confidence, severe, summary, priority, reasons, actions, timeline, escalation = assess_project(r)
+                for idx, (_, r) in enumerate(df.iterrows(), start=1):
+                    try:
+                        result_row, prediction, final_status, confidence, severe, summary, priority, reasons, actions, timeline, escalation = assess_project(r)
 
-                    assessed_rows.append({
-                        **result_row,
-                        "model_prediction": prediction,
-                        "final_status": final_status,
-                        "portfolio_health": status_label(final_status),
-                        "confidence_percent": confidence,
-                        "recovery_priority": priority,
-                        "recovery_timeline": timeline,
-                        "executive_escalation": escalation
-                    })
+                        assessed_rows.append({
+                            **result_row,
+                            "model_prediction": prediction,
+                            "final_status": final_status,
+                            "portfolio_health": status_label(final_status),
+                            "confidence_percent": confidence,
+                            "recovery_priority": priority,
+                            "recovery_timeline": timeline,
+                            "executive_escalation": escalation
+                        })
 
-                except Exception as e:
-                    st.warning(f"Skipped one row due to invalid data: {e}")
+                    except Exception as e:
+                        st.warning(f"Skipped one row due to invalid data: {e}")
 
-            st.session_state.portfolio_results = pd.DataFrame(assessed_rows)
-            st.session_state.portfolio_file_name = uploaded_file.name
+                    if total_rows > 0:
+                        progress_bar.progress(
+                            min(idx / total_rows, 1.0),
+                            text=f"Analyzing project {idx} of {total_rows}..."
+                        )
+
+                st.session_state.portfolio_results = pd.DataFrame(assessed_rows)
+                st.session_state.portfolio_file_name = uploaded_file.name
+                progress_placeholder.empty()
 
     if st.session_state.portfolio_results is not None:
         assessed_df = st.session_state.portfolio_results
@@ -2021,7 +2224,8 @@ with tab_manual:
             "stakeholder_sentiment_score": stakeholder_sentiment_score
         }
 
-        st.session_state.manual_result = assess_project(manual_row)
+        with st.spinner("Generating project assessment... Please wait while ProjectRescue AI calculates health, EVM forecast, RAID maturity, KPI drivers, and recovery actions."):
+            st.session_state.manual_result = assess_project(manual_row)
 
     if st.session_state.manual_result is not None:
         st.markdown('<div class="panel">', unsafe_allow_html=True)
