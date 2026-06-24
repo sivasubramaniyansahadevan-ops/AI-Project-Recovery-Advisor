@@ -150,23 +150,26 @@ h1, h2, h3, h4, h5, h6, p, label, span {
     border-bottom: 3px solid #E50914 !important;
 }
 
+/* Primary Streamlit buttons */
 .stButton button {
-    background: linear-gradient(135deg, #E50914, #B00610) !important;
-    color: #FFFFFF !important;
-    border: none !important;
+    background: #181818 !important;
+    color: #F5F5F5 !important;
+    border: 1px solid #333333 !important;
     border-radius: 14px !important;
     font-weight: 800 !important;
     padding: 0.75rem 1.4rem !important;
-    box-shadow: 0 12px 30px rgba(229,9,20,0.25);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
 }
 
 .stButton button:hover {
-    background: linear-gradient(135deg, #FF2333, #E50914) !important;
+    background: #242424 !important;
+    color: #FFFFFF !important;
+    border: 1px solid #E50914 !important;
+    box-shadow: 0 0 18px rgba(229,9,20,0.28);
 }
 
-/* Premium dark link buttons: fixes white WhatsApp/Gmail buttons */
 .stLinkButton a {
-    background: #151515 !important;
+    background: #181818 !important;
     color: #F5F5F5 !important;
     border: 1px solid #333333 !important;
     border-radius: 14px !important;
@@ -177,13 +180,12 @@ h1, h2, h3, h4, h5, h6, p, label, span {
 }
 
 .stLinkButton a:hover {
-    background: #202020 !important;
+    background: #242424 !important;
     color: #FFFFFF !important;
     border: 1px solid #E50914 !important;
     box-shadow: 0 0 18px rgba(229,9,20,0.28);
 }
 
-/* PDF download stays as the main red action */
 .stDownloadButton button {
     background: linear-gradient(135deg, #E50914, #B00610) !important;
     color: #FFFFFF !important;
@@ -196,6 +198,16 @@ h1, h2, h3, h4, h5, h6, p, label, span {
 
 .stDownloadButton button:hover {
     background: linear-gradient(135deg, #FF2333, #E50914) !important;
+}
+
+[data-testid="stFileUploader"] section {
+    background: #181818 !important;
+    border: 1px solid #333333 !important;
+    border-radius: 14px !important;
+}
+
+[data-testid="stFileUploader"] section * {
+    color: #F5F5F5 !important;
 }
 
 .stNumberInput input, .stTextInput input {
@@ -254,6 +266,48 @@ h1, h2, h3, h4, h5, h6, p, label, span {
     border-top: 1px solid #222222;
     font-size: 13px;
 }
+
+.health-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 16px;
+}
+.health-tile {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 16px;
+    padding: 16px;
+}
+.health-name {
+    font-size: 13px;
+    color: #BDBDBD !important;
+    margin-bottom: 8px;
+}
+.health-value {
+    font-size: 18px;
+    font-weight: 900;
+}
+.health-green { border-left: 5px solid #2ECC71; }
+.health-amber { border-left: 5px solid #F39C12; }
+.health-red { border-left: 5px solid #E74C3C; }
+.driver-table {
+    width:100%;
+    border-collapse: collapse;
+    margin-top: 14px;
+    margin-bottom: 20px;
+}
+.driver-table th, .driver-table td {
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    padding: 12px;
+    text-align: left;
+}
+.driver-table th { color:#BDBDBD !important; font-size:12px; text-transform:uppercase; }
+.driver-badge { padding: 5px 10px; border-radius: 999px; font-weight: 800; font-size: 12px; }
+.driver-high { background:#8B0000; color:white; }
+.driver-medium { background:#9A6500; color:white; }
+.driver-low { background:#0E6B3A; color:white; }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -301,19 +355,32 @@ def dark_plot(fig):
     return fig
 
 def calculate_risk_score(cost, schedule_pct, delay_days, spi, cpi, completed, risks, issues, scope, utilization, sentiment):
+    """Balanced PMO scoring: mild SPI/CPI movement is watchlist, not automatic risk escalation."""
     score = 0
-    score += max(cost, 0) * 1.2
-    score += max(schedule_pct, 0) * 1.3
-    score += risks * 2.5
-    score += issues * 2.0
-    score += scope * 3.0
-    score += max(utilization - 80, 0) * 1.1
-    score += (5 - sentiment) * 8
-    score += 15 if spi < 0.85 else 8 if spi < 0.95 else 0
-    score += 15 if cpi < 0.85 else 8 if cpi < 0.95 else 0
+    score += max(cost, 0) * 0.8
+    score += max(schedule_pct, 0) * 0.9
+    score += risks * 1.5
+    score += issues * 1.2
+    score += scope * 1.6
+    score += max(utilization - 85, 0) * 0.8
+    score += max(3.8 - sentiment, 0) * 5
 
-    if completed > 75 and score > 40:
+    if spi < 0.85:
+        score += 14
+    elif spi < 0.90:
         score += 8
+    elif spi < 0.95:
+        score += 4
+
+    if cpi < 0.85:
+        score += 14
+    elif cpi < 0.90:
+        score += 8
+    elif cpi < 0.95:
+        score += 4
+
+    if completed > 80 and score > 40:
+        score += 6
 
     return round(score, 2)
 
@@ -345,26 +412,29 @@ def health_breakdown(row):
 
 def get_top_drivers(row):
     drivers = {
-        "Cost Variance": row["cost_variance_percent"] * 1.2,
-        "Schedule Delay %": row["schedule_delay_percent"] * 1.3,
-        "Open Risks": row["open_risks_count"] * 2.5,
-        "Open Issues": row["open_issues_count"] * 2.0,
-        "Scope Changes": row["scope_changes_count"] * 3.0,
-        "Resource Overload": max(row["resource_utilization_percent"] - 80, 0) * 1.1,
-        "Stakeholder Concern": (5 - row["stakeholder_sentiment_score"]) * 8,
-        "SPI Impact": 15 if row["spi"] < 0.85 else 8 if row["spi"] < 0.95 else 0,
-        "CPI Impact": 15 if row["cpi"] < 0.85 else 8 if row["cpi"] < 0.95 else 0
+        "Cost Variance": row["cost_variance_percent"] * 0.8,
+        "Schedule Delay %": row["schedule_delay_percent"] * 0.9,
+        "Open Risks": row["open_risks_count"] * 1.5,
+        "Open Issues": row["open_issues_count"] * 1.2,
+        "Scope Changes": row["scope_changes_count"] * 1.6,
+        "Resource Overload": max(row["resource_utilization_percent"] - 85, 0) * 0.8,
+        "Stakeholder Concern": max(3.8 - row["stakeholder_sentiment_score"], 0) * 5,
+        "SPI Impact": 14 if row["spi"] < 0.85 else 8 if row["spi"] < 0.90 else 4 if row["spi"] < 0.95 else 0,
+        "CPI Impact": 14 if row["cpi"] < 0.85 else 8 if row["cpi"] < 0.90 else 4 if row["cpi"] < 0.95 else 0
     }
     return [(k, round(v, 2)) for k, v in sorted(drivers.items(), key=lambda x: x[1], reverse=True) if v > 0][:5]
 
 def override_status(prediction, risk_score, spi, cpi, delay_percent, risks, issues, sentiment):
-    if risk_score >= 90 or spi < 0.75 or cpi < 0.75 or delay_percent >= 25:
+    """Final status logic. It keeps low-risk projects Green even when one or two KPIs are watchlist-level."""
+    if risk_score >= 75 or spi < 0.80 or cpi < 0.80 or delay_percent >= 25 or risks >= 10 or issues >= 10 or sentiment < 2.5:
         return "Red"
-    if risk_score >= 45 or spi < 0.92 or cpi < 0.92 or delay_percent >= 12 or risks >= 7 or issues >= 7 or sentiment < 3:
-        if prediction == "Green":
-            return "Amber"
-    if risk_score <= 25 and spi >= 0.95 and cpi >= 0.95 and sentiment >= 3.8 and risks <= 3 and issues <= 3:
+
+    if risk_score >= 35 or spi < 0.90 or cpi < 0.90 or delay_percent >= 12 or risks >= 7 or issues >= 7 or sentiment < 3.0:
+        return "Amber"
+
+    if risk_score < 35 and delay_percent < 12 and risks < 7 and issues < 7 and sentiment >= 3.0:
         return "Green"
+
     return prediction
 
 def sanity_check_status(status, row):
@@ -424,9 +494,12 @@ def generate_recovery_plan(row, status):
     if row["spi"] < 0.85:
         reasons.append(f"SPI is {row['spi']}, indicating serious schedule performance risk.")
         actions.append("Increase delivery cadence reviews and track planned vs completed work weekly.")
-    elif row["spi"] < 0.95:
-        reasons.append(f"SPI is {row['spi']}, showing schedule slippage against plan.")
+    elif row["spi"] < 0.90:
+        reasons.append(f"SPI is {row['spi']}, showing meaningful schedule slippage against plan.")
         actions.append("Review sprint velocity or milestone delivery performance.")
+    elif row["spi"] < 0.95 and status != "Green":
+        reasons.append(f"SPI is {row['spi']}, showing a watchlist-level schedule variance.")
+        actions.append("Monitor milestone delivery trend in the next status review.")
 
     if row["cost_variance_percent"] >= 20:
         reasons.append(f"Cost variance is high at {row['cost_variance_percent']}%, which may require budget escalation.")
@@ -438,9 +511,12 @@ def generate_recovery_plan(row, status):
     if row["cpi"] < 0.85:
         reasons.append(f"CPI is {row['cpi']}, indicating poor cost efficiency.")
         actions.append("Review cost burn rate and identify low-value activities.")
-    elif row["cpi"] < 0.95:
-        reasons.append(f"CPI is {row['cpi']}, showing cost performance concern.")
+    elif row["cpi"] < 0.90:
+        reasons.append(f"CPI is {row['cpi']}, showing meaningful cost performance concern.")
         actions.append("Tighten budget tracking and review cost-to-complete.")
+    elif row["cpi"] < 0.95 and status != "Green":
+        reasons.append(f"CPI is {row['cpi']}, showing a watchlist-level cost variance.")
+        actions.append("Monitor cost-to-complete and validate next forecast cycle.")
 
     if row["open_risks_count"] >= 10:
         reasons.append(f"There are {row['open_risks_count']} open risks, which may threaten delivery outcomes.")
@@ -683,15 +759,24 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.markdown("### Health Breakdown by Dimension")
-    health_df = pd.DataFrame([{"Dimension": k, "Health": health_icons[v]} for k, v in dimensions.items()])
-    st.dataframe(health_df, use_container_width=True)
+    health_html = '<div class="health-grid">'
+    for k, v in dimensions.items():
+        health_html += f'<div class="health-tile health-{v.lower()}"><div class="health-name">{k}</div><div class="health-value">{health_icons[v]}</div></div>'
+    health_html += '</div>'
+    st.markdown(health_html, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.markdown("### Top Risk Drivers")
     if top_drivers:
         driver_df = pd.DataFrame(top_drivers, columns=["Driver", "Impact Score"])
-        driver_df["Risk Level"] = driver_df["Impact Score"].apply(lambda x: "High" if x >= 15 else "Medium" if x >= 8 else "Low")
+        driver_df["Risk Level"] = driver_df["Impact Score"].apply(lambda x: "High" if x >= 10 else "Medium" if x >= 4 else "Low")
+        table_html = '<table class="driver-table"><tr><th>Driver</th><th>Impact Score</th><th>Risk Level</th></tr>'
+        for _, rr in driver_df.iterrows():
+            level = rr["Risk Level"]
+            table_html += f'<tr><td>{rr["Driver"]}</td><td>{rr["Impact Score"]}</td><td><span class="driver-badge driver-{level.lower()}">{level}</span></td></tr>'
+        table_html += '</table>'
+        st.markdown(table_html, unsafe_allow_html=True)
 
         fig_driver = px.bar(
             driver_df,
