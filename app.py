@@ -428,7 +428,10 @@ st.markdown("""
 # -----------------------------
 # CONFIG
 # -----------------------------
-color_map = {"Green": "#2ECC71", "Amber": "#F39C12", "Red": "#E74C3C"}
+color_map = {
+    "Green": "#2ECC71", "Amber": "#F39C12", "Red": "#E74C3C",
+    "On Track": "#2ECC71", "Watchlist": "#F39C12", "Critical": "#E74C3C"
+}
 risk_color_map = {
     "Critical": "#E74C3C",
     "Watchlist": "#F39C12",
@@ -456,10 +459,48 @@ def dark_plot(fig):
         template="plotly_dark",
         paper_bgcolor="#0B0B0B",
         plot_bgcolor="#0B0B0B",
-        font_color="#F5F5F5",
-        title_font_size=20,
-        title_font_color="#FFFFFF",
-        legend_title_font_color="#FFFFFF"
+        font=dict(color="#F5F5F5", size=15, family="Inter"),
+        title=dict(font=dict(size=24, color="#FFFFFF", family="Inter")),
+        legend=dict(
+            title=dict(text="<b>Project Health</b>", font=dict(size=18, color="#FFFFFF", family="Inter")),
+            font=dict(size=16, color="#FFFFFF", family="Inter"),
+            bgcolor="rgba(20,20,20,0.88)",
+            bordercolor="rgba(255,255,255,0.25)",
+            borderwidth=1
+        )
+    )
+    return fig
+
+
+def polish_3d_portfolio_chart(fig):
+    """Make the 3D portfolio chart executive-readable with bold titles and clear legends."""
+    fig.update_traces(marker=dict(size=5, opacity=0.9))
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(
+                title=dict(text="<b>Schedule Delay (Days)</b>", font=dict(size=16, color="#FFFFFF")),
+                tickfont=dict(size=12, color="#FFFFFF"),
+                gridcolor="rgba(255,255,255,0.20)"
+            ),
+            yaxis=dict(
+                title=dict(text="<b>Cost Variance (%)</b>", font=dict(size=16, color="#FFFFFF")),
+                tickfont=dict(size=12, color="#FFFFFF"),
+                gridcolor="rgba(255,255,255,0.20)"
+            ),
+            zaxis=dict(
+                title=dict(text="<b>Risk Score</b>", font=dict(size=16, color="#FFFFFF")),
+                tickfont=dict(size=12, color="#FFFFFF"),
+                gridcolor="rgba(255,255,255,0.20)"
+            )
+        ),
+        legend=dict(
+            title=dict(text="<b>Project Health</b>", font=dict(size=18, color="#FFFFFF", family="Inter")),
+            font=dict(size=16, color="#FFFFFF", family="Inter"),
+            bgcolor="rgba(20,20,20,0.90)",
+            bordercolor="rgba(255,255,255,0.35)",
+            borderwidth=1
+        ),
+        title=dict(text="<b>3D Portfolio Risk View</b>", font=dict(size=24, color="#FFFFFF", family="Inter"))
     )
     return fig
 
@@ -531,9 +572,14 @@ def utilization_health(utilization):
 
 
 def sentiment_health(sentiment):
-    if sentiment >= 3.8:
+    """Stakeholder alignment threshold.
+
+    In real PMO reporting, 3.5/5 is usually managed/acceptable unless there are
+    active escalations. 3.0-3.49 is watchlist; below 3.0 needs recovery action.
+    """
+    if sentiment >= 3.5:
         return "Green"
-    if sentiment >= 2.8:
+    if sentiment >= 3.0:
         return "Amber"
     return "Red"
 
@@ -557,7 +603,7 @@ def calculate_risk_score(cost, schedule_pct, delay_days, spi, cpi, completed, ri
 
     # Resource and stakeholder exposure
     score += max(utilization - 85, 0) * 0.90
-    score += max(3.8 - sentiment, 0) * 6.00
+    score += max(3.5 - sentiment, 0) * 6.00
 
     # EVM performance penalties. Severe SPI/CPI should materially influence final score.
     if spi < 0.80:
@@ -664,28 +710,35 @@ def calculate_evm_forecast(bac, cpi):
 
 
 def raid_maturity_score(row):
-    """Proxy RAID maturity score from available fields.
+    """Proxy RAID maturity score from available inputs.
 
-    The app has direct inputs for Risks and Issues. Scope changes are treated as a change-control
-    proxy, while stakeholder sentiment is used as a governance/communication proxy.
+    This is intentionally conservative: a few open risks/issues should not make
+    governance look fully mature. The score represents control discipline, not
+    the absence of all risks.
     """
     risks = int(row["open_risks_count"])
     issues = int(row["open_issues_count"])
     scope = int(row["scope_changes_count"])
     sentiment = float(row["stakeholder_sentiment_score"])
 
-    risk_score = 100 if risks <= 3 else 70 if risks <= 8 else 35
-    issue_score = 100 if issues <= 3 else 70 if issues <= 8 else 35
-    change_score = 100 if scope <= 2 else 70 if scope <= 5 else 35
-    stakeholder_score = 100 if sentiment >= 3.8 else 70 if sentiment >= 2.8 else 35
+    score = 100.0
+    score -= max(risks - 2, 0) * 5.0
+    score -= max(issues - 2, 0) * 6.0
+    score -= max(scope - 1, 0) * 5.0
+    score -= max(4.0 - sentiment, 0) * 12.0
 
-    score = (risk_score * 0.30) + (issue_score * 0.30) + (change_score * 0.20) + (stakeholder_score * 0.20)
-    return round(score, 1)
+    if risks >= 9:
+        score -= 12
+    if issues >= 9:
+        score -= 14
+    if scope >= 6:
+        score -= 10
 
+    return round(max(min(score, 100), 0), 1)
 
 def raid_maturity_health(row):
     score = float(row.get("raid_maturity_score", raid_maturity_score(row)))
-    if score >= 80:
+    if score >= 75:
         return "Green"
     if score >= 60:
         return "Amber"
@@ -693,8 +746,10 @@ def raid_maturity_health(row):
 
 
 def raid_maturity_label(score):
-    if score >= 80:
+    if score >= 90:
         return "Mature"
+    if score >= 75:
+        return "Managed"
     if score >= 60:
         return "Developing"
     return "Weak"
@@ -753,8 +808,9 @@ def risk_driver_level(level_or_score):
 def override_status(prediction, risk_score, spi, cpi, delay_percent, risks, issues, sentiment):
     """Final project health rule.
 
-    PMBOK-style governance: severe EVM variance can override otherwise healthy
-    qualitative indicators. A project cannot be Green when SPI/CPI is materially weak.
+    Rule-based PMO governance is the source of truth. The ML model is retained
+    for confidence/explainability, but it must not collapse the portfolio into
+    only Green/Red. Amber should remain the normal management-watch category.
     """
     dimension_statuses = [
         variance_health(delay_percent, 5, 15),
@@ -763,17 +819,10 @@ def override_status(prediction, risk_score, spi, cpi, delay_percent, risks, issu
         count_health(risks, 3, 8),
         count_health(issues, 3, 8),
         sentiment_health(sentiment),
-        "Red" if risk_score >= 60 else "Amber" if risk_score >= 35 else "Green"
+        "Red" if risk_score >= 70 else "Amber" if risk_score >= 35 else "Green"
     ]
 
-    rule_status = worst_health(*dimension_statuses)
-
-    # Permit model to escalate, but never allow it to downgrade the rule-based status.
-    if prediction in STATUS_ORDER and STATUS_ORDER[prediction] > STATUS_ORDER[rule_status]:
-        return prediction
-
-    return rule_status
-
+    return worst_health(*dimension_statuses)
 
 def sanity_check_status(status, row):
     severe = []
@@ -899,10 +948,10 @@ def generate_recovery_plan(row, status):
         reasons.append(f"Resource utilization is high at {row['resource_utilization_percent']}%.")
         actions.append("Review workload distribution across the team.")
 
-    if row["stakeholder_sentiment_score"] < 2.8:
+    if row["stakeholder_sentiment_score"] < 3.0:
         reasons.append(f"Stakeholder sentiment is low at {row['stakeholder_sentiment_score']}/5.")
         actions.append("Conduct stakeholder alignment meeting and reset communication cadence.")
-    elif row["stakeholder_sentiment_score"] < 3.8:
+    elif row["stakeholder_sentiment_score"] < 3.5:
         reasons.append(f"Stakeholder sentiment is watchlist-level at {row['stakeholder_sentiment_score']}/5.")
         actions.append("Increase stakeholder updates and clarify expectations.")
 
@@ -1388,6 +1437,7 @@ with tab_csv:
                         **result_row,
                         "model_prediction": prediction,
                         "final_status": final_status,
+                        "portfolio_health": status_label(final_status),
                         "confidence_percent": confidence,
                         "recovery_priority": priority,
                         "recovery_timeline": timeline,
@@ -1424,8 +1474,8 @@ with tab_csv:
             c1.metric("Total Projects", len(assessed_df))
             c2.metric("Average Risk Score", round(assessed_df["risk_score"].mean(), 2))
             c3.metric(
-                "High Priority Projects",
-                len(assessed_df[assessed_df["recovery_priority"] == "High"])
+                "Critical Projects",
+                len(assessed_df[assessed_df["final_status"] == "Red"])
             )
 
             col1, col2 = st.columns(2)
@@ -1433,9 +1483,9 @@ with tab_csv:
             with col1:
                 fig1 = px.pie(
                     assessed_df,
-                    names="final_status",
-                    title="Portfolio Health Distribution",
-                    color="final_status",
+                    names="portfolio_health",
+                    title="<b>Portfolio Health Distribution</b>",
+                    color="portfolio_health",
                     color_discrete_map=color_map,
                     hole=0.45
                 )
@@ -1447,12 +1497,12 @@ with tab_csv:
                     x="schedule_variance_days",
                     y="cost_variance_percent",
                     z="risk_score",
-                    color="final_status",
+                    color="portfolio_health",
                     hover_name="project_name",
-                    title="3D Portfolio Risk View",
+                    title="<b>3D Portfolio Risk View</b>",
                     color_discrete_map=color_map
                 )
-                st.plotly_chart(dark_plot(fig2), use_container_width=True)
+                st.plotly_chart(polish_3d_portfolio_chart(dark_plot(fig2)), use_container_width=True)
 
             st.subheader("Assessed Project Results")
             st.dataframe(assessed_df, use_container_width=True)
