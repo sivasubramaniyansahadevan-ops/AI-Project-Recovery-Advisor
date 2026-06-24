@@ -481,6 +481,18 @@ def escalation_required(status, row):
         return "Monitor"
     return "No"
 
+def summarize_dimension_watchlist(row, status):
+    """Create a summary phrase that stays consistent with the dimension cards."""
+    dims = health_breakdown(row)
+    red_dims = [name.replace(" Health", "") for name, value in dims.items() if value == "Red"]
+    amber_dims = [name.replace(" Health", "") for name, value in dims.items() if value == "Amber"]
+
+    if red_dims:
+        return f"Critical concern areas: {', '.join(red_dims)}."
+    if amber_dims:
+        return f"Watchlist areas: {', '.join(amber_dims)}."
+    return "All assessed dimensions are within acceptable PMO tolerance."
+
 def generate_recovery_plan(row, status):
     reasons, actions = [], []
 
@@ -587,15 +599,27 @@ def generate_recovery_plan(row, status):
     timeline = recovery_timeline(status, row)
     escalation = escalation_required(status, row)
 
+    dimension_note = summarize_dimension_watchlist(row, status)
+
     if status == "Red":
         priority = "High"
-        summary = f"This {row['project_type']} project is classified as Red due to a risk score of {row['risk_score']}. Immediate recovery action, leadership visibility, and structured recovery governance are required. Estimated recovery timeline is {timeline}."
+        summary = (
+            f"This {row['project_type']} project is classified as Red with a risk score of {row['risk_score']}. "
+            f"{dimension_note} Immediate recovery governance, leadership visibility, and owner-driven corrective actions are required. "
+            f"Estimated recovery timeline is {timeline}."
+        )
     elif status == "Amber":
         priority = "Medium"
-        summary = f"This {row['project_type']} project is classified as Amber. The project appears recoverable within {timeline}, but cost, schedule, risk, stakeholder, or execution indicators require management attention."
+        summary = (
+            f"This {row['project_type']} project is classified as Amber with a risk score of {row['risk_score']}. "
+            f"{dimension_note} The project appears recoverable within {timeline} if corrective actions are taken now."
+        )
     else:
         priority = "Low"
-        summary = f"This {row['project_type']} project is classified as Green. Cost, schedule, risk, issue, resource, and stakeholder indicators are within acceptable PMO tolerance."
+        summary = (
+            f"This {row['project_type']} project is classified as Green with a risk score of {row['risk_score']}. "
+            f"{dimension_note} Continue standard PMO monitoring and review watchlist items during the next status cycle."
+        )
 
     return summary, priority, reasons, actions, timeline, escalation
 
@@ -770,7 +794,7 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     st.markdown("### Top Risk Drivers")
     if top_drivers:
         driver_df = pd.DataFrame(top_drivers, columns=["Driver", "Impact Score"])
-        driver_df["Risk Level"] = driver_df["Impact Score"].apply(lambda x: "High" if x >= 10 else "Medium" if x >= 4 else "Low")
+        driver_df["Risk Level"] = driver_df["Impact Score"].apply(lambda x: "High" if x >= 20 else "Medium" if x >= 8 else "Low")
         table_html = '<table class="driver-table"><tr><th>Driver</th><th>Impact Score</th><th>Risk Level</th></tr>'
         for _, rr in driver_df.iterrows():
             level = rr["Risk Level"]
