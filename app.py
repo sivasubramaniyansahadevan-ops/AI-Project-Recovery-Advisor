@@ -692,42 +692,78 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
 # -----------------------------
 # MAIN UI
 # -----------------------------
-tab_csv, tab_manual = st.tabs(["Portfolio Assessment", "Single Project Assessment"])
+
+if "portfolio_results" not in st.session_state:
+    st.session_state.portfolio_results = None
+
+if "manual_result" not in st.session_state:
+    st.session_state.manual_result = None
+
+
+tab_csv, tab_manual = st.tabs([
+    "Portfolio Assessment",
+    "Single Project Assessment"
+])
+
 
 with tab_csv:
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("Upload project portfolio CSV", type=["csv"], key="csv_upload")
-    st.caption("Assess multiple projects at once and export results.")
+    st.subheader("Portfolio Assessment")
+
+    with st.form("portfolio_form"):
+        uploaded_file = st.file_uploader(
+            "Upload project portfolio CSV",
+            type=["csv"],
+            key="portfolio_csv_upload"
+        )
+
+        st.caption("Upload your CSV, then click Analyze Portfolio. The app will not analyze automatically.")
+
+        analyze_portfolio = st.form_submit_button("Analyze Portfolio")
+
     st.markdown("</div>", unsafe_allow_html=True)
 
-    if uploaded_file:
-        df = pd.read_csv(uploaded_file)
-        assessed_rows = []
+    if analyze_portfolio:
+        if uploaded_file is None:
+            st.warning("Please upload a CSV file first.")
+        else:
+            df = pd.read_csv(uploaded_file)
+            assessed_rows = []
 
-        for _, r in df.iterrows():
-            try:
-                result_row, prediction, final_status, confidence, severe, summary, priority, reasons, actions, timeline, escalation = assess_project(r)
-                assessed_rows.append({
-                    **result_row,
-                    "model_prediction": prediction,
-                    "final_status": final_status,
-                    "confidence_percent": confidence,
-                    "recovery_priority": priority,
-                    "recovery_timeline": timeline,
-                    "executive_escalation": escalation
-                })
-            except Exception as e:
-                st.warning(f"Skipped one row due to invalid data: {e}")
+            for _, r in df.iterrows():
+                try:
+                    result_row, prediction, final_status, confidence, severe, summary, priority, reasons, actions, timeline, escalation = assess_project(r)
 
-        assessed_df = pd.DataFrame(assessed_rows)
+                    assessed_rows.append({
+                        **result_row,
+                        "model_prediction": prediction,
+                        "final_status": final_status,
+                        "confidence_percent": confidence,
+                        "recovery_priority": priority,
+                        "recovery_timeline": timeline,
+                        "executive_escalation": escalation
+                    })
+
+                except Exception as e:
+                    st.warning(f"Skipped one row due to invalid data: {e}")
+
+            st.session_state.portfolio_results = pd.DataFrame(assessed_rows)
+
+    if st.session_state.portfolio_results is not None:
+        assessed_df = st.session_state.portfolio_results
 
         if not assessed_df.empty:
             c1, c2, c3 = st.columns(3)
+
             c1.metric("Total Projects", len(assessed_df))
             c2.metric("Average Risk Score", round(assessed_df["risk_score"].mean(), 2))
-            c3.metric("High Priority Projects", len(assessed_df[assessed_df["recovery_priority"] == "High"]))
+            c3.metric(
+                "High Priority Projects",
+                len(assessed_df[assessed_df["recovery_priority"] == "High"])
+            )
 
             col1, col2 = st.columns(2)
+
             with col1:
                 fig1 = px.pie(
                     assessed_df,
@@ -755,49 +791,124 @@ with tab_csv:
             st.markdown('<div class="panel">', unsafe_allow_html=True)
             st.subheader("Assessed Project Results")
             st.dataframe(assessed_df, use_container_width=True)
+
             st.download_button(
                 "Download Assessed CSV",
                 data=assessed_df.to_csv(index=False).encode("utf-8"),
                 file_name="project_rescue_assessed_results.csv",
-                mime="text/csv"
+                mime="text/csv",
+                key="download_portfolio_csv"
             )
             st.markdown("</div>", unsafe_allow_html=True)
+
+    else:
+        st.info("Upload a CSV file and click Analyze Portfolio.")
+
 
 with tab_manual:
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.subheader("Single Project Assessment")
 
-    col_a, col_b = st.columns(2)
+    with st.form("manual_project_form"):
+        col_a, col_b = st.columns(2)
 
-    with col_a:
-        project_name = st.text_input("Project Name", "Cloud Migration Program")
-        project_type = st.selectbox(
-            "Project Type",
-            [
-                "Cloud Migration", "ERP Implementation", "CRM Modernization",
-                "Data Warehouse Migration", "Cybersecurity Program", "ITSM Transformation",
-                "Procurement Automation", "License Optimization", "Infrastructure Refresh",
-                "Mobile App Development", "AI Adoption Program"
-            ]
-        )
-        project_duration_days = st.number_input("Planned Project Duration Days", min_value=1, value=180)
-        completed_tasks_percent = st.slider("Completed Tasks %", 0, 100, 65)
-        cost_variance_percent = st.number_input("Cost Variance %", value=8.0)
-        schedule_variance_days = st.number_input("Schedule Delay Days", value=10)
-        spi = st.number_input("SPI", value=0.95, step=0.01)
-        cpi = st.number_input("CPI", value=0.96, step=0.01)
+        with col_a:
+            project_name = st.text_input(
+                "Project Name",
+                "Cloud Migration Program"
+            )
 
-    with col_b:
-        open_risks_count = st.number_input("Open Risks", min_value=0, value=4)
-        open_issues_count = st.number_input("Open Issues", min_value=0, value=3)
-        scope_changes_count = st.number_input("Scope Changes", min_value=0, value=2)
-        resource_utilization_percent = st.slider("Resource Utilization %", 0, 100, 85)
-        stakeholder_sentiment_score = st.slider("Stakeholder Sentiment", 1.0, 5.0, 3.5, step=0.1)
+            project_type = st.selectbox(
+                "Project Type",
+                [
+                    "Cloud Migration",
+                    "ERP Implementation",
+                    "CRM Modernization",
+                    "Data Warehouse Migration",
+                    "Cybersecurity Program",
+                    "ITSM Transformation",
+                    "Procurement Automation",
+                    "License Optimization",
+                    "Infrastructure Refresh",
+                    "Mobile App Development",
+                    "AI Adoption Program"
+                ]
+            )
 
-    analyze = st.button("Analyze Project")
+            project_duration_days = st.number_input(
+                "Planned Project Duration Days",
+                min_value=1,
+                value=180
+            )
+
+            completed_tasks_percent = st.slider(
+                "Completed Tasks %",
+                0,
+                100,
+                65
+            )
+
+            cost_variance_percent = st.number_input(
+                "Cost Variance %",
+                value=8.0
+            )
+
+            schedule_variance_days = st.number_input(
+                "Schedule Delay Days",
+                value=10
+            )
+
+            spi = st.number_input(
+                "SPI",
+                value=0.95,
+                step=0.01
+            )
+
+            cpi = st.number_input(
+                "CPI",
+                value=0.96,
+                step=0.01
+            )
+
+        with col_b:
+            open_risks_count = st.number_input(
+                "Open Risks",
+                min_value=0,
+                value=4
+            )
+
+            open_issues_count = st.number_input(
+                "Open Issues",
+                min_value=0,
+                value=3
+            )
+
+            scope_changes_count = st.number_input(
+                "Scope Changes",
+                min_value=0,
+                value=2
+            )
+
+            resource_utilization_percent = st.slider(
+                "Resource Utilization %",
+                0,
+                100,
+                85
+            )
+
+            stakeholder_sentiment_score = st.slider(
+                "Stakeholder Sentiment",
+                1.0,
+                5.0,
+                3.5,
+                step=0.1
+            )
+
+        analyze_manual = st.form_submit_button("Analyze Project")
+
     st.markdown("</div>", unsafe_allow_html=True)
 
-    if analyze:
+    if analyze_manual:
         manual_row = {
             "project_name": project_name,
             "project_type": project_type,
@@ -814,8 +925,11 @@ with tab_manual:
             "stakeholder_sentiment_score": stakeholder_sentiment_score
         }
 
-        result = assess_project(manual_row)
-        render_result(*result)
+        st.session_state.manual_result = assess_project(manual_row)
+
+    if st.session_state.manual_result is not None:
+        render_result(*st.session_state.manual_result)
+
 
 st.markdown("""
 <div class="footer">
