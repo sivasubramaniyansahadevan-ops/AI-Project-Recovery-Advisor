@@ -3,8 +3,10 @@ import pandas as pd
 import plotly.express as px
 import joblib
 from io import BytesIO
+import matplotlib.pyplot as plt
+
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
@@ -13,36 +15,14 @@ st.set_page_config(page_title="ProjectRescue AI", layout="wide")
 st.title("🚀 ProjectRescue AI")
 st.subheader("ML-Powered Project Health & Recovery Advisor")
 
-color_map = {
-    "Green": "#2ECC71",
-    "Amber": "#F39C12",
-    "Red": "#E74C3C"
-}
-
-risk_color_map = {
-    "High": "#E74C3C",
-    "Medium": "#F39C12",
-    "Low": "#2ECC71"
-}
-
-health_icons = {
-    "Green": "🟢 Green",
-    "Amber": "🟠 Amber",
-    "Red": "🔴 Red"
-}
+color_map = {"Green": "#2ECC71", "Amber": "#F39C12", "Red": "#E74C3C"}
+risk_color_map = {"High": "#E74C3C", "Medium": "#F39C12", "Low": "#2ECC71"}
+health_icons = {"Green": "🟢 Green", "Amber": "🟠 Amber", "Red": "🔴 Red"}
 
 features = [
-    "cost_variance_percent",
-    "schedule_variance_percent",
-    "schedule_variance_days",
-    "spi",
-    "cpi",
-    "completed_tasks_percent",
-    "open_risks_count",
-    "open_issues_count",
-    "scope_changes_count",
-    "resource_utilization_percent",
-    "stakeholder_sentiment_score",
+    "cost_variance_percent", "schedule_variance_percent", "schedule_variance_days",
+    "spi", "cpi", "completed_tasks_percent", "open_risks_count", "open_issues_count",
+    "scope_changes_count", "resource_utilization_percent", "stakeholder_sentiment_score",
     "risk_score"
 ]
 
@@ -52,17 +32,16 @@ def load_model():
 
 model = load_model()
 
-def calculate_risk_score(cost_variance_percent, schedule_variance_percent, schedule_variance_days, spi, cpi,
-                         completed_tasks_percent, open_risks_count, open_issues_count, scope_changes_count,
-                         resource_utilization_percent, stakeholder_sentiment_score):
+
+def calculate_risk_score(cost, schedule_pct, delay_days, spi, cpi, completed, risks, issues, scope, utilization, sentiment):
     score = 0
-    score += max(cost_variance_percent, 0) * 1.2
-    score += max(schedule_variance_percent, 0) * 1.3
-    score += open_risks_count * 2.5
-    score += open_issues_count * 2.0
-    score += scope_changes_count * 3.0
-    score += max(resource_utilization_percent - 80, 0) * 1.1
-    score += (5 - stakeholder_sentiment_score) * 8
+    score += max(cost, 0) * 1.2
+    score += max(schedule_pct, 0) * 1.3
+    score += risks * 2.5
+    score += issues * 2.0
+    score += scope * 3.0
+    score += max(utilization - 80, 0) * 1.1
+    score += (5 - sentiment) * 8
 
     if spi < 0.85:
         score += 15
@@ -74,10 +53,11 @@ def calculate_risk_score(cost_variance_percent, schedule_variance_percent, sched
     elif cpi < 0.95:
         score += 8
 
-    if completed_tasks_percent > 75 and score > 40:
+    if completed > 75 and score > 40:
         score += 8
 
     return round(score, 2)
+
 
 def classify_dimension(value, green_limit, amber_limit, reverse=False):
     if reverse:
@@ -93,6 +73,7 @@ def classify_dimension(value, green_limit, amber_limit, reverse=False):
             return "Amber"
         return "Red"
 
+
 def health_breakdown(row):
     return {
         "Schedule Health": classify_dimension(row["schedule_delay_percent"], 5, 15),
@@ -106,6 +87,7 @@ def health_breakdown(row):
         "Stakeholder Health": classify_dimension(row["stakeholder_sentiment_score"], 3.8, 2.8, reverse=True)
     }
 
+
 def get_top_drivers(row):
     drivers = {
         "Cost Variance": row["cost_variance_percent"] * 1.2,
@@ -118,44 +100,45 @@ def get_top_drivers(row):
         "SPI Impact": 15 if row["spi"] < 0.85 else 8 if row["spi"] < 0.95 else 0,
         "CPI Impact": 15 if row["cpi"] < 0.85 else 8 if row["cpi"] < 0.95 else 0
     }
-    sorted_drivers = sorted(drivers.items(), key=lambda x: x[1], reverse=True)
-    return [(name, round(score, 2)) for name, score in sorted_drivers if score > 0][:5]
+    return [(k, round(v, 2)) for k, v in sorted(drivers.items(), key=lambda x: x[1], reverse=True) if v > 0][:5]
 
-def sanity_check_status(status, row):
-    severe_drivers = []
 
-    if row["cost_variance_percent"] >= 20:
-        severe_drivers.append("Cost variance is severe")
-    if row["schedule_delay_percent"] >= 25:
-        severe_drivers.append("Schedule delay is severe compared to project duration")
-    if row["spi"] < 0.85:
-        severe_drivers.append("SPI is critically low")
-    if row["cpi"] < 0.85:
-        severe_drivers.append("CPI is critically low")
-    if row["open_risks_count"] >= 10:
-        severe_drivers.append("Open risk count is high")
-    if row["open_issues_count"] >= 10:
-        severe_drivers.append("Open issue count is high")
-    if row["stakeholder_sentiment_score"] < 2.5:
-        severe_drivers.append("Stakeholder sentiment is low")
-
-    if status == "Red" and len(severe_drivers) == 0:
-        return "Amber", severe_drivers
-
-    return status, severe_drivers
-
-def override_status(prediction, risk_score, spi, cpi, delay_percent, open_risks, open_issues, sentiment):
+def override_status(prediction, risk_score, spi, cpi, delay_percent, risks, issues, sentiment):
     if risk_score >= 90 or spi < 0.75 or cpi < 0.75 or delay_percent >= 25:
         return "Red"
 
-    if risk_score >= 45 or spi < 0.92 or cpi < 0.92 or delay_percent >= 12 or open_risks >= 7 or open_issues >= 7 or sentiment < 3:
+    if risk_score >= 45 or spi < 0.92 or cpi < 0.92 or delay_percent >= 12 or risks >= 7 or issues >= 7 or sentiment < 3:
         if prediction == "Green":
             return "Amber"
 
-    if risk_score <= 25 and spi >= 0.95 and cpi >= 0.95 and sentiment >= 3.8 and open_risks <= 3 and open_issues <= 3:
+    if risk_score <= 25 and spi >= 0.95 and cpi >= 0.95 and sentiment >= 3.8 and risks <= 3 and issues <= 3:
         return "Green"
 
     return prediction
+
+
+def sanity_check_status(status, row):
+    severe = []
+    if row["cost_variance_percent"] >= 20:
+        severe.append("Cost variance is severe")
+    if row["schedule_delay_percent"] >= 25:
+        severe.append("Schedule delay is severe compared to project duration")
+    if row["spi"] < 0.85:
+        severe.append("SPI is critically low")
+    if row["cpi"] < 0.85:
+        severe.append("CPI is critically low")
+    if row["open_risks_count"] >= 10:
+        severe.append("Open risk count is high")
+    if row["open_issues_count"] >= 10:
+        severe.append("Open issue count is high")
+    if row["stakeholder_sentiment_score"] < 2.5:
+        severe.append("Stakeholder sentiment is low")
+
+    if status == "Red" and len(severe) == 0:
+        return "Amber", severe
+
+    return status, severe
+
 
 def recovery_timeline(status, row):
     if status == "Green":
@@ -170,6 +153,7 @@ def recovery_timeline(status, row):
         return "8-12 weeks"
     return "6-8 weeks"
 
+
 def escalation_required(status, row):
     if status == "Red":
         return "Yes"
@@ -179,9 +163,9 @@ def escalation_required(status, row):
         return "Monitor"
     return "No"
 
+
 def generate_recovery_plan(row, status):
-    reasons = []
-    actions = []
+    reasons, actions = [], []
 
     if row["schedule_delay_percent"] >= 20 or row["schedule_variance_days"] >= 30:
         reasons.append(f"Schedule delay is significant at {row['schedule_variance_days']} days, equal to {row['schedule_delay_percent']}% of planned duration.")
@@ -247,9 +231,11 @@ def generate_recovery_plan(row, status):
         actions.append("Increase stakeholder updates and clarify expectations.")
 
     if row["project_type"] == "Procurement Automation" and (row["cost_variance_percent"] >= 10 or row["cpi"] < 0.95):
-        actions.append("Reforecast Estimate at Completion for procurement spend.")
-        actions.append("Review vendor contracts, invoices, and approval delays.")
-        actions.append("Freeze non-essential procurement requests until budget variance is controlled.")
+        actions.extend([
+            "Reforecast Estimate at Completion for procurement spend.",
+            "Review vendor contracts, invoices, and approval delays.",
+            "Freeze non-essential procurement requests until budget variance is controlled."
+        ])
 
     if row["project_type"] == "Cloud Migration" and (row["schedule_delay_percent"] >= 10 or row["spi"] < 0.95):
         actions.append("Review migration wave plan, cutover readiness, and rollback strategy.")
@@ -290,6 +276,102 @@ def generate_recovery_plan(row, status):
 
     return summary, priority, reasons, actions, timeline, escalation
 
+
+def assess_project(row):
+    duration = max(float(row.get("project_duration_days", 180)), 1)
+    schedule_days = float(row["schedule_variance_days"])
+    schedule_pct = float(row.get("schedule_variance_percent", round((schedule_days / duration) * 100, 2)))
+
+    risk_score = calculate_risk_score(
+        float(row["cost_variance_percent"]), schedule_pct, schedule_days,
+        float(row["spi"]), float(row["cpi"]), float(row["completed_tasks_percent"]),
+        int(row["open_risks_count"]), int(row["open_issues_count"]), int(row["scope_changes_count"]),
+        float(row["resource_utilization_percent"]), float(row["stakeholder_sentiment_score"])
+    )
+
+    input_df = pd.DataFrame([{
+        "cost_variance_percent": float(row["cost_variance_percent"]),
+        "schedule_variance_percent": schedule_pct,
+        "schedule_variance_days": schedule_days,
+        "spi": float(row["spi"]),
+        "cpi": float(row["cpi"]),
+        "completed_tasks_percent": float(row["completed_tasks_percent"]),
+        "open_risks_count": int(row["open_risks_count"]),
+        "open_issues_count": int(row["open_issues_count"]),
+        "scope_changes_count": int(row["scope_changes_count"]),
+        "resource_utilization_percent": float(row["resource_utilization_percent"]),
+        "stakeholder_sentiment_score": float(row["stakeholder_sentiment_score"]),
+        "risk_score": risk_score
+    }])
+
+    prediction = model.predict(input_df[features])[0]
+    confidence = round(max(model.predict_proba(input_df[features])[0]) * 100, 2)
+
+    final_status = override_status(
+        prediction, risk_score, float(row["spi"]), float(row["cpi"]),
+        schedule_pct, int(row["open_risks_count"]), int(row["open_issues_count"]),
+        float(row["stakeholder_sentiment_score"])
+    )
+
+    result_row = {
+        "project_name": row.get("project_name", "Manual Project"),
+        "project_type": row.get("project_type", "General Project"),
+        "project_duration_days": duration,
+        "completed_tasks_percent": float(row["completed_tasks_percent"]),
+        "cost_variance_percent": float(row["cost_variance_percent"]),
+        "schedule_variance_days": schedule_days,
+        "schedule_delay_percent": schedule_pct,
+        "spi": float(row["spi"]),
+        "cpi": float(row["cpi"]),
+        "open_risks_count": int(row["open_risks_count"]),
+        "open_issues_count": int(row["open_issues_count"]),
+        "scope_changes_count": int(row["scope_changes_count"]),
+        "resource_utilization_percent": float(row["resource_utilization_percent"]),
+        "stakeholder_sentiment_score": float(row["stakeholder_sentiment_score"]),
+        "risk_score": risk_score
+    }
+
+    final_status, severe_drivers = sanity_check_status(final_status, result_row)
+    summary, priority, reasons, actions, timeline, escalation = generate_recovery_plan(result_row, final_status)
+
+    return result_row, prediction, final_status, confidence, severe_drivers, summary, priority, reasons, actions, timeline, escalation
+
+
+def chart_to_buffer(fig):
+    buf = BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+def create_health_chart(dimensions):
+    labels = list(dimensions.keys())
+    values = [1] * len(labels)
+    colors_list = [color_map[dimensions[label]] for label in labels]
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.barh(labels, values, color=colors_list)
+    ax.set_xlim(0, 1)
+    ax.set_xticks([])
+    ax.set_title("Health Breakdown by Dimension")
+    return chart_to_buffer(fig)
+
+
+def create_driver_chart(top_drivers):
+    names = [x[0] for x in top_drivers]
+    scores = [x[1] for x in top_drivers]
+    levels = ["High" if s >= 15 else "Medium" if s >= 8 else "Low" for s in scores]
+    colors_list = [risk_color_map[level] for level in levels]
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.bar(names, scores, color=colors_list)
+    ax.set_title("Top Risk Drivers")
+    ax.set_ylabel("Impact Score")
+    ax.tick_params(axis="x", rotation=25)
+    return chart_to_buffer(fig)
+
+
 def create_pdf_report(project_name, final_status, confidence, risk_score, priority, timeline, escalation,
                       summary, dimensions, top_drivers, reasons, actions, result_row):
     buffer = BytesIO()
@@ -313,6 +395,15 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
     story.append(Paragraph("Executive Summary", styles["Heading2"]))
     story.append(Paragraph(summary, styles["Normal"]))
     story.append(Spacer(1, 12))
+
+    story.append(Paragraph("Health Breakdown Chart", styles["Heading2"]))
+    story.append(Image(create_health_chart(dimensions), width=470, height=240))
+    story.append(Spacer(1, 12))
+
+    if top_drivers:
+        story.append(Paragraph("Top Risk Drivers Chart", styles["Heading2"]))
+        story.append(Image(create_driver_chart(top_drivers), width=470, height=240))
+        story.append(Spacer(1, 12))
 
     story.append(Paragraph("Health Breakdown by Dimension", styles["Heading2"]))
     health_table_data = [["Dimension", "Health"]] + [[k, v] for k, v in dimensions.items()]
@@ -345,56 +436,94 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
     for action in actions:
         story.append(Paragraph(f"- {action}", styles["Normal"]))
 
-    story.append(Spacer(1, 12))
-    story.append(Paragraph("Entered Project Metrics", styles["Heading2"]))
-    metrics_data = [[k, str(v)] for k, v in result_row.items()]
-    metrics_table = Table(metrics_data, colWidths=[230, 230])
-    metrics_table.setStyle(TableStyle([
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey)
-    ]))
-    story.append(metrics_table)
-
     doc.build(story)
     buffer.seek(0)
     return buffer
 
-uploaded_file = st.file_uploader("Upload Project CSV", type=["csv"])
 
-if uploaded_file:
-    df = pd.read_csv(uploaded_file)
+tab_csv, tab_manual = st.tabs(["📂 Upload CSV Assessment", "📝 Manual Project Assessment"])
 
-    st.success("File Uploaded Successfully")
+with tab_csv:
+    uploaded_file = st.file_uploader("Upload Project CSV", type=["csv"], key="csv_upload")
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Projects", len(df))
-    col2.metric("Average Risk Score", round(df["risk_score"].mean(), 2))
-    col3.metric("Average Delay Days", round(df["schedule_variance_days"].mean(), 2))
+    if uploaded_file:
+        df = pd.read_csv(uploaded_file)
 
-    st.markdown("---")
+        st.success("File uploaded successfully")
 
-    col_left, col_right = st.columns(2)
+        assessed_rows = []
+        for _, r in df.iterrows():
+            try:
+                result_row, prediction, final_status, confidence, severe, summary, priority, reasons, actions, timeline, escalation = assess_project(r)
+                assessed_rows.append({
+                    **result_row,
+                    "ml_prediction": prediction,
+                    "final_status": final_status,
+                    "ml_confidence_percent": confidence,
+                    "recovery_priority": priority,
+                    "recovery_timeline": timeline,
+                    "executive_escalation": escalation
+                })
+            except Exception as e:
+                st.warning(f"Skipped one row due to missing/invalid data: {e}")
 
-    with col_left:
-        fig1 = px.pie(df, names="status", title="Project Health Distribution", color="status", color_discrete_map=color_map)
-        st.plotly_chart(fig1, use_container_width=True)
+        assessed_df = pd.DataFrame(assessed_rows)
 
-    with col_right:
-        fig2 = px.histogram(df, x="risk_score", color="status", title="Risk Score Distribution", color_discrete_map=color_map)
-        st.plotly_chart(fig2, use_container_width=True)
+        if not assessed_df.empty:
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Total Projects", len(assessed_df))
+            col2.metric("Average Risk Score", round(assessed_df["risk_score"].mean(), 2))
+            col3.metric("High Priority Projects", len(assessed_df[assessed_df["recovery_priority"] == "High"]))
 
-    fig3 = px.scatter(
-        df,
-        x="schedule_variance_days",
-        y="cost_variance_percent",
-        color="status",
-        hover_data=["project_name", "project_type"],
-        title="Schedule Delay vs Cost Variance",
-        color_discrete_map=color_map
-    )
-    st.plotly_chart(fig3, use_container_width=True)
+            col_left, col_right = st.columns(2)
 
-    st.markdown("---")
-    st.header("📝 Manual Project Assessment")
+            with col_left:
+                fig1 = px.pie(
+                    assessed_df,
+                    names="final_status",
+                    title="Predicted Project Health Distribution",
+                    color="final_status",
+                    color_discrete_map=color_map
+                )
+                st.plotly_chart(fig1, use_container_width=True)
+
+            with col_right:
+                fig2 = px.histogram(
+                    assessed_df,
+                    x="risk_score",
+                    color="final_status",
+                    title="Risk Score Distribution",
+                    color_discrete_map=color_map
+                )
+                st.plotly_chart(fig2, use_container_width=True)
+
+            fig3 = px.scatter(
+                assessed_df,
+                x="schedule_variance_days",
+                y="cost_variance_percent",
+                color="final_status",
+                hover_data=["project_name", "project_type"],
+                title="Schedule Delay vs Cost Variance",
+                color_discrete_map=color_map
+            )
+            st.plotly_chart(fig3, use_container_width=True)
+
+            st.subheader("Assessed Project Results")
+            st.dataframe(assessed_df, use_container_width=True)
+
+            csv_export = assessed_df.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                "⬇️ Download Assessed CSV",
+                data=csv_export,
+                file_name="project_rescue_assessed_results.csv",
+                mime="text/csv"
+            )
+    else:
+        st.info("Upload a CSV file to assess multiple projects at once.")
+
+
+with tab_manual:
+    st.header("Manual Project Assessment")
 
     col_a, col_b = st.columns(2)
 
@@ -403,17 +532,10 @@ if uploaded_file:
         project_type = st.selectbox(
             "Project Type",
             [
-                "Cloud Migration",
-                "ERP Implementation",
-                "CRM Modernization",
-                "Data Warehouse Migration",
-                "Cybersecurity Program",
-                "ITSM Transformation",
-                "Procurement Automation",
-                "License Optimization",
-                "Infrastructure Refresh",
-                "Mobile App Development",
-                "AI Adoption Program"
+                "Cloud Migration", "ERP Implementation", "CRM Modernization",
+                "Data Warehouse Migration", "Cybersecurity Program", "ITSM Transformation",
+                "Procurement Automation", "License Optimization", "Infrastructure Refresh",
+                "Mobile App Development", "AI Adoption Program"
             ]
         )
         project_duration_days = st.number_input("Planned Project Duration Days", min_value=1, value=180)
@@ -430,73 +552,24 @@ if uploaded_file:
         resource_utilization_percent = st.slider("Resource Utilization %", 0, 100, 85)
         stakeholder_sentiment_score = st.slider("Stakeholder Sentiment", 1.0, 5.0, 3.5, step=0.1)
 
-    if st.button("🔍 Analyze Project"):
-        schedule_variance_percent = round((schedule_variance_days / project_duration_days) * 100, 2)
-
-        risk_score = calculate_risk_score(
-            cost_variance_percent,
-            schedule_variance_percent,
-            schedule_variance_days,
-            spi,
-            cpi,
-            completed_tasks_percent,
-            open_risks_count,
-            open_issues_count,
-            scope_changes_count,
-            resource_utilization_percent,
-            stakeholder_sentiment_score
-        )
-
-        input_df = pd.DataFrame([{
-            "cost_variance_percent": cost_variance_percent,
-            "schedule_variance_percent": schedule_variance_percent,
-            "schedule_variance_days": schedule_variance_days,
-            "spi": spi,
-            "cpi": cpi,
-            "completed_tasks_percent": completed_tasks_percent,
-            "open_risks_count": open_risks_count,
-            "open_issues_count": open_issues_count,
-            "scope_changes_count": scope_changes_count,
-            "resource_utilization_percent": resource_utilization_percent,
-            "stakeholder_sentiment_score": stakeholder_sentiment_score,
-            "risk_score": risk_score
-        }])
-
-        prediction = model.predict(input_df[features])[0]
-        probabilities = model.predict_proba(input_df[features])[0]
-        confidence = round(max(probabilities) * 100, 2)
-
-        final_status = override_status(
-            prediction,
-            risk_score,
-            spi,
-            cpi,
-            schedule_variance_percent,
-            open_risks_count,
-            open_issues_count,
-            stakeholder_sentiment_score
-        )
-
-        result_row = {
+    if st.button("🔍 Analyze Manual Project"):
+        manual_row = {
             "project_name": project_name,
             "project_type": project_type,
             "project_duration_days": project_duration_days,
             "completed_tasks_percent": completed_tasks_percent,
             "cost_variance_percent": cost_variance_percent,
             "schedule_variance_days": schedule_variance_days,
-            "schedule_delay_percent": schedule_variance_percent,
             "spi": spi,
             "cpi": cpi,
             "open_risks_count": open_risks_count,
             "open_issues_count": open_issues_count,
             "scope_changes_count": scope_changes_count,
             "resource_utilization_percent": resource_utilization_percent,
-            "stakeholder_sentiment_score": stakeholder_sentiment_score,
-            "risk_score": risk_score
+            "stakeholder_sentiment_score": stakeholder_sentiment_score
         }
 
-        final_status, severe_drivers = sanity_check_status(final_status, result_row)
-        summary, priority, reasons, actions, timeline, escalation = generate_recovery_plan(result_row, final_status)
+        result_row, prediction, final_status, confidence, severe_drivers, summary, priority, reasons, actions, timeline, escalation = assess_project(manual_row)
         dimensions = health_breakdown(result_row)
         top_drivers = get_top_drivers(result_row)
 
@@ -511,7 +584,7 @@ if uploaded_file:
 
         col_x, col_y, col_z, col_w, col_v = st.columns(5)
         col_x.metric("ML Confidence", f"{confidence}%")
-        col_y.metric("Risk Score", risk_score)
+        col_y.metric("Risk Score", result_row["risk_score"])
         col_z.metric("Recovery Priority", priority)
         col_w.metric("Recovery Timeline", timeline)
         col_v.metric("Executive Escalation", escalation)
@@ -520,18 +593,13 @@ if uploaded_file:
         st.write(summary)
 
         st.markdown("### Health Breakdown by Dimension")
-        health_df = pd.DataFrame([
-            {"Dimension": key, "Health": health_icons[value]}
-            for key, value in dimensions.items()
-        ])
+        health_df = pd.DataFrame([{"Dimension": k, "Health": health_icons[v]} for k, v in dimensions.items()])
         st.dataframe(health_df, use_container_width=True)
 
         st.markdown("### Top Risk Drivers / Feature Importance")
         if top_drivers:
             driver_df = pd.DataFrame(top_drivers, columns=["Driver", "Impact Score"])
-            driver_df["Risk Level"] = driver_df["Impact Score"].apply(
-                lambda x: "High" if x >= 15 else "Medium" if x >= 8 else "Low"
-            )
+            driver_df["Risk Level"] = driver_df["Impact Score"].apply(lambda x: "High" if x >= 15 else "Medium" if x >= 8 else "Low")
             st.dataframe(driver_df, use_container_width=True)
 
             fig_driver = px.bar(
@@ -543,8 +611,6 @@ if uploaded_file:
                 color_discrete_map=risk_color_map
             )
             st.plotly_chart(fig_driver, use_container_width=True)
-        else:
-            st.write("No major risk drivers detected.")
 
         if severe_drivers:
             st.markdown("### Severe Drivers")
@@ -561,19 +627,8 @@ if uploaded_file:
 
         st.markdown("### Export Assessment Report")
         pdf_buffer = create_pdf_report(
-            project_name,
-            final_status,
-            confidence,
-            risk_score,
-            priority,
-            timeline,
-            escalation,
-            summary,
-            dimensions,
-            top_drivers,
-            reasons,
-            actions,
-            result_row
+            project_name, final_status, confidence, result_row["risk_score"], priority,
+            timeline, escalation, summary, dimensions, top_drivers, reasons, actions, result_row
         )
 
         st.download_button(
@@ -584,20 +639,5 @@ if uploaded_file:
         )
 
         st.markdown("### Entered Project Metrics")
-        output_df = pd.DataFrame([{
-            **result_row,
-            "ml_prediction": prediction,
-            "final_status": final_status,
-            "ml_confidence_percent": confidence,
-            "recovery_priority": priority,
-            "recovery_timeline": timeline,
-            "executive_escalation": escalation
-        }])
+        output_df = pd.DataFrame([{**result_row, "ml_prediction": prediction, "final_status": final_status, "ml_confidence_percent": confidence}])
         st.dataframe(output_df, use_container_width=True)
-
-    st.markdown("---")
-    st.subheader("Project Data Preview")
-    st.dataframe(df.head(20), use_container_width=True)
-
-else:
-    st.info("Please upload the project CSV file to view dashboard and use manual assessment.")
