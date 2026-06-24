@@ -327,7 +327,7 @@ st.markdown("""
 # -----------------------------
 color_map = {"Green": "#2ECC71", "Amber": "#F39C12", "Red": "#E74C3C"}
 risk_color_map = {"High": "#E74C3C", "Medium": "#F39C12", "Low": "#2ECC71"}
-health_icons = {"Green": "🟢 Green", "Amber": "🟠 Amber", "Red": "🔴 Red"}
+health_icons = {"Green": "🟢 On Track", "Amber": "🟠 Watchlist", "Red": "🔴 Critical"}
 
 features = [
     "cost_variance_percent", "schedule_variance_percent", "schedule_variance_days",
