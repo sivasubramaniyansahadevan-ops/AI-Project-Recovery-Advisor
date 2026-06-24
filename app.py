@@ -801,61 +801,76 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
             table_html += f'<tr><td>{rr["Driver"]}</td><td>{rr["Impact Score"]}</td><td><span class="driver-badge driver-{level.lower()}">{level}</span></td></tr>'
         table_html += '</table>'
         st.markdown(table_html, unsafe_allow_html=True)
-        fig_driver = px.bar(
-    driver_df,
-    x="Driver",
-    y="Impact Score",
-    color="Risk Level",
-    title="Risk Driver Impact",
-    color_discrete_map=risk_color_map,
-    text="Impact Score"
-)
+                fig_driver = px.bar(
+            driver_df,
+            x="Driver",
+            y="Impact Score",
+            color="Risk Level",
+            title="Risk Driver Impact",
+            color_discrete_map=risk_color_map,
+            text="Impact Score"
+        )
 
-fig_driver.update_traces(
-    textposition="outside",
-    marker_line_color="rgba(255,255,255,0.9)",
-    marker_line_width=2,
-    opacity=0.95
-)
+        fig_driver.update_traces(
+            textposition="outside",
+            marker_line_color="rgba(255,255,255,0.9)",
+            marker_line_width=2,
+            opacity=0.95
+        )
 
-fig_driver.update_layout(
-    template="plotly_dark",
-    paper_bgcolor="#0B0B0B",
-    plot_bgcolor="#0B0B0B",
-    font=dict(
-        color="#FFFFFF",
-        size=15,
-        family="Inter"
-    ),
-    title=dict(
-        text="<b>Risk Driver Impact</b>",
-        font=dict(size=28, color="#FFFFFF")
-    ),
-    xaxis=dict(
-        title="<b>Driver</b>",
-        title_font=dict(size=18, color="#FFFFFF"),
-        tickfont=dict(size=15, color="#FFFFFF", family="Inter"),
-        showgrid=False
-    ),
-    yaxis=dict(
-        title="<b>Impact Score</b>",
-        title_font=dict(size=18, color="#FFFFFF"),
-        tickfont=dict(size=15, color="#FFFFFF", family="Inter"),
-        gridcolor="rgba(255,255,255,0.18)"
-    ),
-    legend=dict(
-        title=dict(text="<b>Risk Level</b>", font=dict(size=16, color="#FFFFFF")),
-        font=dict(size=15, color="#FFFFFF"),
-        bgcolor="rgba(20,20,20,0.85)",
-        bordercolor="rgba(255,255,255,0.25)",
-        borderwidth=1
-    ),
-    bargap=0.35
-)
+        fig_driver.update_layout(
+            template="plotly_dark",
+            paper_bgcolor="#0B0B0B",
+            plot_bgcolor="#0B0B0B",
+            font=dict(
+                color="#FFFFFF",
+                size=15,
+                family="Inter"
+            ),
+            title=dict(
+                text="<b>Risk Driver Impact</b>",
+                font=dict(size=28, color="#FFFFFF")
+            ),
+            xaxis=dict(
+                title="<b>Driver</b>",
+                title_font=dict(size=18, color="#FFFFFF"),
+                tickfont=dict(size=15, color="#FFFFFF"),
+                showgrid=False
+            ),
+            yaxis=dict(
+                title="<b>Impact Score</b>",
+                title_font=dict(size=18, color="#FFFFFF"),
+                tickfont=dict(size=15, color="#FFFFFF"),
+                gridcolor="rgba(255,255,255,0.18)"
+            ),
+            legend=dict(
+                title=dict(
+                    text="<b>Risk Level</b>",
+                    font=dict(size=16, color="#FFFFFF")
+                ),
+                font=dict(size=15, color="#FFFFFF"),
+                bgcolor="rgba(20,20,20,0.85)",
+                bordercolor="rgba(255,255,255,0.25)",
+                borderwidth=1
+            )
+        )
 
-st.plotly_chart(fig_driver, use_container_width=True)
+        st.plotly_chart(fig_driver, use_container_width=True)
 
-st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown("### Key Reasons")
+
+    for reason in reasons:
+        st.write(f"• {reason}")
+
+    st.markdown("### Recommended Recovery Actions")
+
+    for action in actions:
+        st.write(f"• {action}")
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown('<div class="panel">', unsafe_allow_html=True)
 st.markdown("### Key Reasons")
