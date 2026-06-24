@@ -2328,7 +2328,7 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     st.caption("The report includes executive summary, EVM forecast, RAID maturity, health charts, KPI exposure, matrix views, bubble matrix, recovery actions, and critical project watchlist.")
     portfolio_pdf_buffer = create_portfolio_pdf_report(assessed_df, portfolio_file_name)
     st.download_button(
-        "Download Report",
+        "Download PDF Report",
         data=portfolio_pdf_buffer,
         file_name="project_rescue_portfolio_assessment_report.pdf",
         mime="application/pdf",
