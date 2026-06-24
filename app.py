@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import joblib
 from io import BytesIO
 import matplotlib.pyplot as plt
@@ -428,16 +429,19 @@ st.markdown("""
 # -----------------------------
 # CONFIG
 # -----------------------------
+# Executive PMO traffic-light palette.
+# Critical and Watchlist are intentionally red/amber instead of blue so urgency is clear.
 color_map = {
-    "Green": "#2ECC71", "Amber": "#F39C12", "Red": "#E74C3C",
-    "On Track": "#2ECC71", "Watchlist": "#F39C12", "Critical": "#E74C3C"
+    "Green": "#52C41A", "Amber": "#FFC53D", "Red": "#FF4D4F",
+    "On Track": "#52C41A", "Watchlist": "#FFC53D", "Critical": "#FF4D4F",
+    "Critical Projects": "#FF4D4F", "Watchlist Projects": "#FFC53D"
 }
 risk_color_map = {
-    "Critical": "#E74C3C",
-    "Watchlist": "#F39C12",
-    "Low": "#2ECC71",
-    "High": "#E74C3C",
-    "Medium": "#F39C12"
+    "Critical": "#FF4D4F",
+    "Watchlist": "#FFC53D",
+    "Low": "#52C41A",
+    "High": "#FF4D4F",
+    "Medium": "#FFC53D"
 }
 health_icons = {"Green": "🟢 On Track", "Amber": "🟠 Watchlist", "Red": "🔴 Critical"}
 
@@ -1440,6 +1444,71 @@ def portfolio_kpi_driver_summary(assessed_df):
     return out.sort_values("Exposure Sort", ascending=False).drop(columns=["Exposure Sort"])
 
 
+def portfolio_health_matrix(assessed_df):
+    """Create a practical PMO matrix: Schedule Performance vs Cost Performance.
+
+    Rows = schedule health; columns = cost health. This shows where the portfolio
+    needs governance focus: schedule-only, cost-only, or combined recovery.
+    """
+    records = []
+    for _, row in assessed_df.iterrows():
+        dims = health_breakdown(row)
+        records.append({
+            "Schedule Performance": status_label(dims["Schedule Performance"]),
+            "Cost Performance": status_label(dims["Cost Performance"]),
+            "Project": row.get("project_name", "Project")
+        })
+
+    matrix = pd.DataFrame(records)
+    order = ["On Track", "Watchlist", "Critical"]
+    matrix_counts = (
+        matrix.groupby(["Schedule Performance", "Cost Performance"])
+        .size()
+        .reset_index(name="Project Count")
+        .pivot(index="Schedule Performance", columns="Cost Performance", values="Project Count")
+        .reindex(index=order, columns=order)
+        .fillna(0)
+        .astype(int)
+    )
+    return matrix_counts
+
+
+def portfolio_priority_matrix(assessed_df):
+    """Portfolio prioritization matrix: Risk Score band vs RAID Maturity band."""
+    def risk_band(score):
+        score = float(score)
+        if score >= 70:
+            return "High Risk"
+        if score >= 35:
+            return "Medium Risk"
+        return "Low Risk"
+
+    def raid_band(score):
+        score = float(score)
+        if score >= 75:
+            return "Managed/Mature"
+        if score >= 60:
+            return "Developing"
+        return "Weak"
+
+    tmp = assessed_df.copy()
+    tmp["Risk Band"] = tmp["risk_score"].apply(risk_band)
+    tmp["RAID Band"] = tmp["raid_maturity_score"].apply(raid_band)
+
+    risk_order = ["Low Risk", "Medium Risk", "High Risk"]
+    raid_order = ["Managed/Mature", "Developing", "Weak"]
+    matrix_counts = (
+        tmp.groupby(["Risk Band", "RAID Band"])
+        .size()
+        .reset_index(name="Project Count")
+        .pivot(index="Risk Band", columns="RAID Band", values="Project Count")
+        .reindex(index=risk_order, columns=raid_order)
+        .fillna(0)
+        .astype(int)
+    )
+    return matrix_counts
+
+
 def portfolio_recovery_actions(assessed_df):
     actions = []
     critical_count = int((assessed_df["final_status"] == "Red").sum())
@@ -1581,14 +1650,82 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
         y=["Critical Projects", "Watchlist Projects"],
         title="<b>Critical & Watchlist Exposure by KPI</b>",
         barmode="group",
-        text_auto=True
+        text_auto=True,
+        color_discrete_map={
+            "Critical Projects": color_map["Critical Projects"],
+            "Watchlist Projects": color_map["Watchlist Projects"]
+        }
     )
+    fig_driver.update_traces(marker_line_color="rgba(255,255,255,0.85)", marker_line_width=1.5)
     fig_driver.update_layout(
-        xaxis=dict(title="<b>KPI Driver</b>", tickangle=-20, title_font=dict(size=16)),
-        yaxis=dict(title="<b>Number of Projects</b>", title_font=dict(size=16)),
-        legend=dict(title=dict(text="<b>Exposure Level</b>"), font=dict(size=15))
+        xaxis=dict(title="<b>KPI Driver</b>", tickangle=-20, title_font=dict(size=16), tickfont=dict(size=14, color="#FFFFFF")),
+        yaxis=dict(title="<b>Number of Projects</b>", title_font=dict(size=16), tickfont=dict(size=14, color="#FFFFFF")),
+        legend=dict(title=dict(text="<b>Exposure Level</b>", font=dict(size=17, color="#FFFFFF")), font=dict(size=15, color="#FFFFFF"))
     )
     st.plotly_chart(dark_plot(fig_driver), use_container_width=True)
+
+    st.markdown("### Portfolio Matrix View")
+    m1, m2 = st.columns(2)
+    schedule_cost_matrix = portfolio_health_matrix(assessed_df)
+    priority_matrix = portfolio_priority_matrix(assessed_df)
+
+    with m1:
+        st.markdown("#### Schedule vs Cost Performance Matrix")
+        fig_matrix = go.Figure(data=go.Heatmap(
+            z=schedule_cost_matrix.values,
+            x=list(schedule_cost_matrix.columns),
+            y=list(schedule_cost_matrix.index),
+            colorscale=[
+                [0.0, "#173D25"],
+                [0.5, "#7A5200"],
+                [1.0, "#8B0000"]
+            ],
+            text=schedule_cost_matrix.values,
+            texttemplate="<b>%{text}</b>",
+            textfont={"size": 18, "color": "#FFFFFF"},
+            hovertemplate="Schedule: %{y}<br>Cost: %{x}<br>Projects: %{z}<extra></extra>"
+        ))
+        fig_matrix.update_layout(
+            title="<b>Schedule-Cost Exposure Matrix</b>",
+            xaxis_title="<b>Cost Performance</b>",
+            yaxis_title="<b>Schedule Performance</b>",
+            paper_bgcolor="#0B0B0B",
+            plot_bgcolor="#0B0B0B",
+            font=dict(color="#FFFFFF", family="Inter"),
+            height=430
+        )
+        st.plotly_chart(fig_matrix, use_container_width=True)
+        st.dataframe(schedule_cost_matrix, use_container_width=True)
+
+    with m2:
+        st.markdown("#### Risk Score vs RAID Governance Matrix")
+        fig_priority = go.Figure(data=go.Heatmap(
+            z=priority_matrix.values,
+            x=list(priority_matrix.columns),
+            y=list(priority_matrix.index),
+            colorscale=[
+                [0.0, "#173D25"],
+                [0.5, "#7A5200"],
+                [1.0, "#8B0000"]
+            ],
+            text=priority_matrix.values,
+            texttemplate="<b>%{text}</b>",
+            textfont={"size": 18, "color": "#FFFFFF"},
+            hovertemplate="Risk Band: %{y}<br>RAID Band: %{x}<br>Projects: %{z}<extra></extra>"
+        ))
+        fig_priority.update_layout(
+            title="<b>Recovery Priority Matrix</b>",
+            xaxis_title="<b>RAID Maturity</b>",
+            yaxis_title="<b>Risk Score Band</b>",
+            paper_bgcolor="#0B0B0B",
+            plot_bgcolor="#0B0B0B",
+            font=dict(color="#FFFFFF", family="Inter"),
+            height=430
+        )
+        st.plotly_chart(fig_priority, use_container_width=True)
+        st.dataframe(priority_matrix, use_container_width=True)
+
+    st.caption("Matrix views help identify projects needing schedule-cost recovery versus governance maturity intervention.")
 
     st.markdown("### Portfolio Recovery Actions")
     for action in portfolio_recovery_actions(assessed_df):
