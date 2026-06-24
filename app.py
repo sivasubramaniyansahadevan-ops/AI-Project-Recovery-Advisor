@@ -4,6 +4,7 @@ import plotly.express as px
 import joblib
 from io import BytesIO
 import matplotlib.pyplot as plt
+import urllib.parse
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
@@ -12,8 +13,49 @@ from reportlab.lib import colors
 
 st.set_page_config(page_title="ProjectRescue AI", layout="wide")
 
-st.title("🚀 ProjectRescue AI")
-st.subheader("ML-Powered Project Health & Recovery Advisor")
+st.markdown("""
+<style>
+.stApp {
+    background-color: #0B0B0B;
+    color: #F5F5F5;
+}
+h1, h2, h3, h4, h5, h6, p, label, span {
+    color: #F5F5F5 !important;
+}
+[data-testid="stMetric"] {
+    background: linear-gradient(135deg, #1F1F1F, #111111);
+    border: 1px solid #E50914;
+    padding: 20px;
+    border-radius: 16px;
+}
+.project-card {
+    padding: 24px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    color: white;
+}
+.green-card {
+    background: linear-gradient(135deg, #0f5132, #198754);
+}
+.amber-card {
+    background: linear-gradient(135deg, #7A4F00, #F39C12);
+}
+.red-card {
+    background: linear-gradient(135deg, #7A0000, #E50914);
+}
+.brand-footer {
+    color: #AAAAAA;
+    font-size: 14px;
+    margin-top: 40px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<h1 style='color:#E50914;'>🚀 ProjectRescue AI</h1>
+<h4>Project Health & Recovery Advisor</h4>
+<h5 style='color:#AAAAAA;'>Powered by ThinkLab.pm | Built by Sivasubramaniyan Sahadevan</h5>
+""", unsafe_allow_html=True)
 
 color_map = {"Green": "#2ECC71", "Amber": "#F39C12", "Red": "#E74C3C"}
 risk_color_map = {"High": "#E74C3C", "Medium": "#F39C12", "Low": "#2ECC71"}
@@ -31,6 +73,16 @@ def load_model():
     return joblib.load("project_rescue_model.pkl")
 
 model = load_model()
+
+
+def dark_plot(fig):
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor="#0B0B0B",
+        plot_bgcolor="#0B0B0B",
+        font_color="#F5F5F5"
+    )
+    return fig
 
 
 def calculate_risk_score(cost, schedule_pct, delay_days, spi, cpi, completed, risks, issues, scope, utilization, sentiment):
@@ -385,7 +437,7 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
     story.append(Paragraph(f"<b>Project Name:</b> {project_name}", styles["Normal"]))
     story.append(Paragraph(f"<b>Project Type:</b> {result_row['project_type']}", styles["Normal"]))
     story.append(Paragraph(f"<b>Final Health Status:</b> {final_status}", styles["Normal"]))
-    story.append(Paragraph(f"<b>ML Confidence:</b> {confidence}%", styles["Normal"]))
+    story.append(Paragraph(f"<b>Confidence:</b> {confidence}%", styles["Normal"]))
     story.append(Paragraph(f"<b>Risk Score:</b> {risk_score}", styles["Normal"]))
     story.append(Paragraph(f"<b>Recovery Priority:</b> {priority}", styles["Normal"]))
     story.append(Paragraph(f"<b>Recovery Timeline:</b> {timeline}", styles["Normal"]))
@@ -405,28 +457,6 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
         story.append(Image(create_driver_chart(top_drivers), width=470, height=240))
         story.append(Spacer(1, 12))
 
-    story.append(Paragraph("Health Breakdown by Dimension", styles["Heading2"]))
-    health_table_data = [["Dimension", "Health"]] + [[k, v] for k, v in dimensions.items()]
-    health_table = Table(health_table_data, colWidths=[230, 230])
-    health_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold")
-    ]))
-    story.append(health_table)
-    story.append(Spacer(1, 12))
-
-    story.append(Paragraph("Top Risk Drivers", styles["Heading2"]))
-    driver_table_data = [["Driver", "Impact Score"]] + [[d, str(s)] for d, s in top_drivers]
-    driver_table = Table(driver_table_data, colWidths=[230, 230])
-    driver_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold")
-    ]))
-    story.append(driver_table)
-    story.append(Spacer(1, 12))
-
     story.append(Paragraph("Key Reasons", styles["Heading2"]))
     for reason in reasons:
         story.append(Paragraph(f"- {reason}", styles["Normal"]))
@@ -441,14 +471,112 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
     return buffer
 
 
-tab_csv, tab_manual = st.tabs(["📂 Upload CSV Assessment", "📝 Manual Project Assessment"])
+def render_result(result_row, prediction, final_status, confidence, severe_drivers, summary, priority, reasons, actions, timeline, escalation):
+    dimensions = health_breakdown(result_row)
+    top_drivers = get_top_drivers(result_row)
+
+    card_class = {"Green": "green-card", "Amber": "amber-card", "Red": "red-card"}[final_status]
+
+    st.markdown(f"""
+    <div class="project-card {card_class}">
+        <h2>Assessment Result</h2>
+        <h2>Predicted Project Health: {health_icons[final_status]}</h2>
+        <br>
+        <div style="display:flex; justify-content:space-between; gap:20px;">
+            <div><h4>Confidence</h4><h2>{confidence}%</h2></div>
+            <div><h4>Risk Score</h4><h2>{result_row["risk_score"]}</h2></div>
+            <div><h4>Recovery Priority</h4><h2>{priority}</h2></div>
+            <div><h4>Recovery Timeline</h4><h2>{timeline}</h2></div>
+            <div><h4>Executive Escalation</h4><h2>{escalation}</h2></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("### Executive Summary")
+    st.write(summary)
+
+    st.markdown("### Health Breakdown by Dimension")
+    health_df = pd.DataFrame([{"Dimension": k, "Health": health_icons[v]} for k, v in dimensions.items()])
+    st.dataframe(health_df, use_container_width=True)
+
+    st.markdown("### Top Risk Drivers / Feature Importance")
+    if top_drivers:
+        driver_df = pd.DataFrame(top_drivers, columns=["Driver", "Impact Score"])
+        driver_df["Risk Level"] = driver_df["Impact Score"].apply(lambda x: "High" if x >= 15 else "Medium" if x >= 8 else "Low")
+        st.dataframe(driver_df, use_container_width=True)
+
+        fig_driver = px.bar(
+            driver_df,
+            x="Driver",
+            y="Impact Score",
+            color="Risk Level",
+            title="Top Risk Drivers",
+            color_discrete_map=risk_color_map,
+            text="Impact Score"
+        )
+        fig_driver.update_traces(textposition="outside", marker_line_color="white", marker_line_width=1.5)
+        st.plotly_chart(dark_plot(fig_driver), use_container_width=True)
+
+    if severe_drivers:
+        st.markdown("### Severe Drivers")
+        for driver in severe_drivers:
+            st.write(f"- {driver}")
+
+    st.markdown("### Key Reasons")
+    for reason in reasons:
+        st.write(f"- {reason}")
+
+    st.markdown("### Recommended Recovery Actions")
+    for action in actions:
+        st.write(f"- {action}")
+
+    st.markdown("### Export Assessment Report")
+    pdf_buffer = create_pdf_report(
+        result_row["project_name"], final_status, confidence, result_row["risk_score"],
+        priority, timeline, escalation, summary, dimensions, top_drivers, reasons, actions, result_row
+    )
+
+    st.download_button(
+        label="📄 Download PDF Report",
+        data=pdf_buffer,
+        file_name=f"{result_row['project_name'].replace(' ', '_')}_assessment_report.pdf",
+        mime="application/pdf"
+    )
+
+    share_text = f"""
+ProjectRescue AI Report
+Project: {result_row['project_name']}
+Status: {final_status}
+Risk Score: {result_row['risk_score']}
+Recovery Priority: {priority}
+Timeline: {timeline}
+Generated by ProjectRescue AI | ThinkLab.pm
+"""
+    encoded_text = urllib.parse.quote(share_text)
+    whatsapp_url = f"https://wa.me/?text={encoded_text}"
+    gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&su=ProjectRescue AI Report - {result_row['project_name']}&body={encoded_text}"
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.link_button("📲 Share Summary on WhatsApp", whatsapp_url)
+    with c2:
+        st.link_button("📧 Share Summary via Gmail", gmail_url)
+
+    st.markdown("### Entered Project Metrics")
+    output_df = pd.DataFrame([{**result_row, "model_prediction": prediction, "final_status": final_status, "confidence_percent": confidence}])
+    st.dataframe(output_df, use_container_width=True)
+
+
+tab_csv, tab_manual = st.tabs([
+    "📊 Analyze Portfolio from CSV",
+    "📝 Assess Single Project"
+])
 
 with tab_csv:
     uploaded_file = st.file_uploader("Upload Project CSV", type=["csv"], key="csv_upload")
 
     if uploaded_file:
         df = pd.read_csv(uploaded_file)
-
         st.success("File uploaded successfully")
 
         assessed_rows = []
@@ -457,15 +585,15 @@ with tab_csv:
                 result_row, prediction, final_status, confidence, severe, summary, priority, reasons, actions, timeline, escalation = assess_project(r)
                 assessed_rows.append({
                     **result_row,
-                    "ml_prediction": prediction,
+                    "model_prediction": prediction,
                     "final_status": final_status,
-                    "ml_confidence_percent": confidence,
+                    "confidence_percent": confidence,
                     "recovery_priority": priority,
                     "recovery_timeline": timeline,
                     "executive_escalation": escalation
                 })
             except Exception as e:
-                st.warning(f"Skipped one row due to missing/invalid data: {e}")
+                st.warning(f"Skipped one row due to missing or invalid data: {e}")
 
         assessed_df = pd.DataFrame(assessed_rows)
 
@@ -475,9 +603,9 @@ with tab_csv:
             col2.metric("Average Risk Score", round(assessed_df["risk_score"].mean(), 2))
             col3.metric("High Priority Projects", len(assessed_df[assessed_df["recovery_priority"] == "High"]))
 
-            col_left, col_right = st.columns(2)
+            c1, c2 = st.columns(2)
 
-            with col_left:
+            with c1:
                 fig1 = px.pie(
                     assessed_df,
                     names="final_status",
@@ -485,9 +613,9 @@ with tab_csv:
                     color="final_status",
                     color_discrete_map=color_map
                 )
-                st.plotly_chart(fig1, use_container_width=True)
+                st.plotly_chart(dark_plot(fig1), use_container_width=True)
 
-            with col_right:
+            with c2:
                 fig2 = px.histogram(
                     assessed_df,
                     x="risk_score",
@@ -495,7 +623,7 @@ with tab_csv:
                     title="Risk Score Distribution",
                     color_discrete_map=color_map
                 )
-                st.plotly_chart(fig2, use_container_width=True)
+                st.plotly_chart(dark_plot(fig2), use_container_width=True)
 
             fig3 = px.scatter(
                 assessed_df,
@@ -506,7 +634,7 @@ with tab_csv:
                 title="Schedule Delay vs Cost Variance",
                 color_discrete_map=color_map
             )
-            st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(dark_plot(fig3), use_container_width=True)
 
             st.subheader("Assessed Project Results")
             st.dataframe(assessed_df, use_container_width=True)
@@ -523,7 +651,7 @@ with tab_csv:
 
 
 with tab_manual:
-    st.header("Manual Project Assessment")
+    st.header("Assess Single Project")
 
     col_a, col_b = st.columns(2)
 
@@ -552,7 +680,7 @@ with tab_manual:
         resource_utilization_percent = st.slider("Resource Utilization %", 0, 100, 85)
         stakeholder_sentiment_score = st.slider("Stakeholder Sentiment", 1.0, 5.0, 3.5, step=0.1)
 
-    if st.button("🔍 Analyze Manual Project"):
+    if st.button("🔍 Analyze Project"):
         manual_row = {
             "project_name": project_name,
             "project_type": project_type,
@@ -569,75 +697,11 @@ with tab_manual:
             "stakeholder_sentiment_score": stakeholder_sentiment_score
         }
 
-        result_row, prediction, final_status, confidence, severe_drivers, summary, priority, reasons, actions, timeline, escalation = assess_project(manual_row)
-        dimensions = health_breakdown(result_row)
-        top_drivers = get_top_drivers(result_row)
+        result = assess_project(manual_row)
+        render_result(*result)
 
-        st.subheader("Assessment Result")
-
-        if final_status == "Green":
-            st.success("Predicted Project Health: 🟢 Green")
-        elif final_status == "Amber":
-            st.warning("Predicted Project Health: 🟠 Amber")
-        else:
-            st.error("Predicted Project Health: 🔴 Red")
-
-        col_x, col_y, col_z, col_w, col_v = st.columns(5)
-        col_x.metric("ML Confidence", f"{confidence}%")
-        col_y.metric("Risk Score", result_row["risk_score"])
-        col_z.metric("Recovery Priority", priority)
-        col_w.metric("Recovery Timeline", timeline)
-        col_v.metric("Executive Escalation", escalation)
-
-        st.markdown("### Executive Summary")
-        st.write(summary)
-
-        st.markdown("### Health Breakdown by Dimension")
-        health_df = pd.DataFrame([{"Dimension": k, "Health": health_icons[v]} for k, v in dimensions.items()])
-        st.dataframe(health_df, use_container_width=True)
-
-        st.markdown("### Top Risk Drivers / Feature Importance")
-        if top_drivers:
-            driver_df = pd.DataFrame(top_drivers, columns=["Driver", "Impact Score"])
-            driver_df["Risk Level"] = driver_df["Impact Score"].apply(lambda x: "High" if x >= 15 else "Medium" if x >= 8 else "Low")
-            st.dataframe(driver_df, use_container_width=True)
-
-            fig_driver = px.bar(
-                driver_df,
-                x="Driver",
-                y="Impact Score",
-                color="Risk Level",
-                title="Top Risk Drivers",
-                color_discrete_map=risk_color_map
-            )
-            st.plotly_chart(fig_driver, use_container_width=True)
-
-        if severe_drivers:
-            st.markdown("### Severe Drivers")
-            for driver in severe_drivers:
-                st.write(f"- {driver}")
-
-        st.markdown("### Key Reasons")
-        for reason in reasons:
-            st.write(f"- {reason}")
-
-        st.markdown("### Recommended Recovery Actions")
-        for action in actions:
-            st.write(f"- {action}")
-
-        st.markdown("### Export Assessment Report")
-        pdf_buffer = create_pdf_report(
-            project_name, final_status, confidence, result_row["risk_score"], priority,
-            timeline, escalation, summary, dimensions, top_drivers, reasons, actions, result_row
-        )
-
-        st.download_button(
-            label="📄 Download PDF Report",
-            data=pdf_buffer,
-            file_name=f"{project_name.replace(' ', '_')}_assessment_report.pdf",
-            mime="application/pdf"
-        )
-
-        st.markdown("### Entered Project Metrics")
-        output_df = pd.DataFrame([{**result_row, "ml_prediction": prediction, "final_status": final_status, "ml_confidence_percent": confidence}])
-        st.dataframe(output_df, use_container_width=True)
+st.markdown("""
+<div class="brand-footer">
+    ProjectRescue AI | ThinkLab.pm | Built by Sivasubramaniyan Sahadevan
+</div>
+""", unsafe_allow_html=True)
