@@ -10,6 +10,12 @@ st.set_page_config(
 st.title("🚀 ProjectRescue AI")
 st.subheader("AI-Powered Project Recovery Advisor")
 
+color_map = {
+    "Green": "#2ECC71",
+    "Amber": "#F39C12",
+    "Red": "#E74C3C"
+}
+
 uploaded_file = st.file_uploader(
     "Upload Project CSV",
     type=["csv"]
@@ -35,7 +41,9 @@ if uploaded_file:
         fig1 = px.pie(
             df,
             names="status",
-            title="Project Health Distribution"
+            title="Project Health Distribution",
+            color="status",
+            color_discrete_map=color_map
         )
         st.plotly_chart(fig1, use_container_width=True)
 
@@ -44,7 +52,8 @@ if uploaded_file:
             df,
             x="risk_score",
             color="status",
-            title="Risk Score Distribution"
+            title="Risk Score Distribution",
+            color_discrete_map=color_map
         )
         st.plotly_chart(fig2, use_container_width=True)
 
@@ -56,7 +65,8 @@ if uploaded_file:
         y="cost_variance_percent",
         color="status",
         hover_data=["project_name", "project_type"],
-        title="Schedule Delay vs Cost Variance"
+        title="Schedule Delay vs Cost Variance",
+        color_discrete_map=color_map
     )
 
     st.plotly_chart(fig3, use_container_width=True)
