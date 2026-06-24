@@ -15,46 +15,166 @@ st.set_page_config(page_title="ProjectRescue AI", layout="wide")
 
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
 .stApp {
-    background-color: #0B0B0B;
+    background: linear-gradient(135deg, #050505 0%, #0B0B0B 45%, #111111 100%);
     color: #F5F5F5;
 }
-h1, h2, h3, h4, h5, h6, p, label, span {
-    color: #F5F5F5 !important;
+
+.block-container {
+    padding-top: 2rem;
+    padding-left: 4rem;
+    padding-right: 4rem;
+    max-width: 1400px;
 }
-[data-testid="stMetric"] {
-    background: linear-gradient(135deg, #1F1F1F, #111111);
-    border: 1px solid #E50914;
-    padding: 20px;
-    border-radius: 16px;
+
+h1, h2, h3 {
+    color: #FFFFFF !important;
+    font-weight: 800 !important;
 }
-.project-card {
-    padding: 24px;
-    border-radius: 20px;
-    margin-bottom: 20px;
-    color: white;
+
+p, label, span {
+    color: #E5E5E5 !important;
 }
-.green-card {
-    background: linear-gradient(135deg, #0f5132, #198754);
+
+.hero-card {
+    background: linear-gradient(135deg, #141414, #090909);
+    border: 1px solid #2A2A2A;
+    border-radius: 22px;
+    padding: 32px;
+    margin-bottom: 28px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.45);
 }
-.amber-card {
-    background: linear-gradient(135deg, #7A4F00, #F39C12);
+
+.hero-title {
+    font-size: 42px;
+    font-weight: 800;
+    color: #FFFFFF;
+    margin-bottom: 8px;
 }
-.red-card {
-    background: linear-gradient(135deg, #7A0000, #E50914);
+
+.hero-title span {
+    color: #E50914 !important;
 }
-.brand-footer {
-    color: #AAAAAA;
+
+.hero-subtitle {
+    font-size: 18px;
+    color: #BDBDBD !important;
+    margin-bottom: 14px;
+}
+
+.hero-brand {
     font-size: 14px;
-    margin-top: 40px;
+    color: #8E8E8E !important;
+}
+
+[data-testid="stTabs"] button {
+    background-color: #141414 !important;
+    border-radius: 12px 12px 0 0 !important;
+    color: #E5E5E5 !important;
+    font-weight: 600 !important;
+}
+
+[data-testid="stTabs"] button[aria-selected="true"] {
+    color: #FFFFFF !important;
+    border-bottom: 3px solid #E50914 !important;
+}
+
+.stNumberInput input, .stTextInput input {
+    background-color: #1C1C1C !important;
+    color: #FFFFFF !important;
+    border: 1px solid #333333 !important;
+    border-radius: 10px !important;
+}
+
+.stSelectbox div[data-baseweb="select"] {
+    background-color: #1C1C1C !important;
+    color: #FFFFFF !important;
+}
+
+.result-card {
+    padding: 28px;
+    border-radius: 24px;
+    margin-top: 28px;
+    margin-bottom: 28px;
+    box-shadow: 0 18px 45px rgba(0,0,0,0.45);
+}
+
+.green-card {
+    background: linear-gradient(135deg, #082E1D, #0F6B3A);
+    border: 1px solid #2ECC71;
+}
+
+.amber-card {
+    background: linear-gradient(135deg, #3A2600, #9A6500);
+    border: 1px solid #F39C12;
+}
+
+.red-card {
+    background: linear-gradient(135deg, #320000, #8B0000);
+    border: 1px solid #E50914;
+}
+
+.result-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 18px;
+    margin-top: 22px;
+}
+
+.result-metric {
+    background: rgba(0,0,0,0.28);
+    padding: 18px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.12);
+}
+
+.result-metric-label {
+    font-size: 13px;
+    color: #BDBDBD !important;
+    margin-bottom: 8px;
+}
+
+.result-metric-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: #FFFFFF !important;
+}
+
+.stButton button, .stDownloadButton button {
+    background: linear-gradient(135deg, #E50914, #B00610) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 0.65rem 1.2rem !important;
+    font-weight: 700 !important;
+}
+
+.stButton button:hover, .stDownloadButton button:hover {
+    background: linear-gradient(135deg, #FF1E2D, #E50914) !important;
+}
+
+.brand-footer {
+    color: #777777;
+    font-size: 13px;
+    margin-top: 50px;
+    padding-top: 20px;
+    border-top: 1px solid #222222;
 }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown("""
-<h1 style='color:#E50914;'>🚀 ProjectRescue AI</h1>
-<h4>Project Health & Recovery Advisor</h4>
-<h5 style='color:#AAAAAA;'>Powered by ThinkLab.pm | Built by Sivasubramaniyan Sahadevan</h5>
+<div class="hero-card">
+    <div class="hero-title">ProjectRescue <span>AI</span></div>
+    <div class="hero-subtitle">Project Health & Recovery Advisor</div>
+    <div class="hero-brand">Powered by ThinkLab.pm · Built by Sivasubramaniyan Sahadevan</div>
+</div>
 """, unsafe_allow_html=True)
 
 color_map = {"Green": "#2ECC71", "Amber": "#F39C12", "Red": "#E74C3C"}
@@ -433,7 +553,6 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
 
     story.append(Paragraph("ProjectRescue AI - Project Health Assessment Report", styles["Title"]))
     story.append(Spacer(1, 12))
-
     story.append(Paragraph(f"<b>Project Name:</b> {project_name}", styles["Normal"]))
     story.append(Paragraph(f"<b>Project Type:</b> {result_row['project_type']}", styles["Normal"]))
     story.append(Paragraph(f"<b>Final Health Status:</b> {final_status}", styles["Normal"]))
@@ -474,20 +593,18 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
 def render_result(result_row, prediction, final_status, confidence, severe_drivers, summary, priority, reasons, actions, timeline, escalation):
     dimensions = health_breakdown(result_row)
     top_drivers = get_top_drivers(result_row)
-
     card_class = {"Green": "green-card", "Amber": "amber-card", "Red": "red-card"}[final_status]
 
     st.markdown(f"""
-    <div class="project-card {card_class}">
-        <h2>Assessment Result</h2>
-        <h2>Predicted Project Health: {health_icons[final_status]}</h2>
-        <br>
-        <div style="display:flex; justify-content:space-between; gap:20px;">
-            <div><h4>Confidence</h4><h2>{confidence}%</h2></div>
-            <div><h4>Risk Score</h4><h2>{result_row["risk_score"]}</h2></div>
-            <div><h4>Recovery Priority</h4><h2>{priority}</h2></div>
-            <div><h4>Recovery Timeline</h4><h2>{timeline}</h2></div>
-            <div><h4>Executive Escalation</h4><h2>{escalation}</h2></div>
+    <div class="result-card {card_class}">
+        <h2 style="margin-bottom: 8px;">Assessment Result</h2>
+        <h1 style="margin-top: 0;">{health_icons[final_status]}</h1>
+        <div class="result-grid">
+            <div class="result-metric"><div class="result-metric-label">Confidence</div><div class="result-metric-value">{confidence}%</div></div>
+            <div class="result-metric"><div class="result-metric-label">Risk Score</div><div class="result-metric-value">{result_row["risk_score"]}</div></div>
+            <div class="result-metric"><div class="result-metric-label">Recovery Priority</div><div class="result-metric-value">{priority}</div></div>
+            <div class="result-metric"><div class="result-metric-label">Recovery Timeline</div><div class="result-metric-value">{timeline}</div></div>
+            <div class="result-metric"><div class="result-metric-label">Executive Escalation</div><div class="result-metric-value">{escalation}</div></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -537,7 +654,7 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     )
 
     st.download_button(
-        label="📄 Download PDF Report",
+        label="Download PDF Report",
         data=pdf_buffer,
         file_name=f"{result_row['project_name'].replace(' ', '_')}_assessment_report.pdf",
         mime="application/pdf"
@@ -558,9 +675,9 @@ Generated by ProjectRescue AI | ThinkLab.pm
 
     c1, c2 = st.columns(2)
     with c1:
-        st.link_button("📲 Share Summary on WhatsApp", whatsapp_url)
+        st.link_button("Share Summary on WhatsApp", whatsapp_url)
     with c2:
-        st.link_button("📧 Share Summary via Gmail", gmail_url)
+        st.link_button("Share Summary via Gmail", gmail_url)
 
     st.markdown("### Entered Project Metrics")
     output_df = pd.DataFrame([{**result_row, "model_prediction": prediction, "final_status": final_status, "confidence_percent": confidence}])
@@ -568,8 +685,8 @@ Generated by ProjectRescue AI | ThinkLab.pm
 
 
 tab_csv, tab_manual = st.tabs([
-    "📊 Analyze Portfolio from CSV",
-    "📝 Assess Single Project"
+    "Portfolio Assessment",
+    "Single Project Assessment"
 ])
 
 with tab_csv:
@@ -641,7 +758,7 @@ with tab_csv:
 
             csv_export = assessed_df.to_csv(index=False).encode("utf-8")
             st.download_button(
-                "⬇️ Download Assessed CSV",
+                "Download Assessed CSV",
                 data=csv_export,
                 file_name="project_rescue_assessed_results.csv",
                 mime="text/csv"
@@ -651,7 +768,7 @@ with tab_csv:
 
 
 with tab_manual:
-    st.header("Assess Single Project")
+    st.header("Single Project Assessment")
 
     col_a, col_b = st.columns(2)
 
@@ -680,7 +797,7 @@ with tab_manual:
         resource_utilization_percent = st.slider("Resource Utilization %", 0, 100, 85)
         stakeholder_sentiment_score = st.slider("Stakeholder Sentiment", 1.0, 5.0, 3.5, step=0.1)
 
-    if st.button("🔍 Analyze Project"):
+    if st.button("Analyze Project"):
         manual_row = {
             "project_name": project_name,
             "project_type": project_type,
@@ -702,6 +819,6 @@ with tab_manual:
 
 st.markdown("""
 <div class="brand-footer">
-    ProjectRescue AI | ThinkLab.pm | Built by Sivasubramaniyan Sahadevan
+    ProjectRescue AI | ThinkLab.pm | Built by Sivasubramaniyan Sahadevan PMP®, CAPM®, CSM®, CSPO®
 </div>
 """, unsafe_allow_html=True)
