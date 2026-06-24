@@ -167,12 +167,26 @@ if uploaded_file:
             reasons.append("Stakeholder sentiment needs improvement.")
 
         if score <= 4:
-            status = "Green"
-            status_display = "🟢 Green"
-            box = st.success
-            recommendation = """
-The project appears to be healthy. Continue monitoring schedule, cost, risks, and stakeholder communication.
-Maintain the current delivery rhythm and review KPIs weekly.
+    status = "Green"
+    status_display = "🟢 Green"
+    box = st.success
+
+    reasons = [
+        "Project KPIs are within acceptable thresholds.",
+        f"Cost performance is healthy with CPI at {cpi}.",
+        f"Schedule performance is healthy with SPI at {spi}.",
+        "Open risks and issues are low.",
+        f"Stakeholder sentiment is positive at {stakeholder_sentiment_score}/5."
+    ]
+
+    if schedule_variance_days > 10:
+        reasons.append(
+            f"Observation: Schedule delay of {schedule_variance_days} days should be monitored, but it is not currently creating major delivery risk."
+        )
+
+    recommendation = """
+The project appears stable. Continue monitoring schedule, cost, risks, and stakeholder communication.
+Review milestone dependencies during weekly status meetings and maintain the current delivery rhythm.
 """
         elif score <= 9:
             status = "Amber"
