@@ -801,7 +801,7 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
             table_html += f'<tr><td>{rr["Driver"]}</td><td>{rr["Impact Score"]}</td><td><span class="driver-badge driver-{level.lower()}">{level}</span></td></tr>'
         table_html += '</table>'
         st.markdown(table_html, unsafe_allow_html=True)
-                fig_driver = px.bar(
+        fig_driver = px.bar(
             driver_df,
             x="Driver",
             y="Impact Score",
