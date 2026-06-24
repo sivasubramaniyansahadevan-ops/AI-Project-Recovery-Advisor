@@ -855,7 +855,7 @@ fig_driver.update_layout(
 
 st.plotly_chart(fig_driver, use_container_width=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.markdown("### Key Reasons")
