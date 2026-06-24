@@ -307,6 +307,8 @@ h1, h2, h3, h4, h5, h6, p, label, span {
 .driver-high { background:#8B0000; color:white; }
 .driver-medium { background:#9A6500; color:white; }
 .driver-low { background:#0E6B3A; color:white; }
+.driver-critical { background:#8B0000; color:white; }
+.driver-watchlist { background:#9A6500; color:white; }
 
 
 
@@ -427,7 +429,13 @@ st.markdown("""
 # CONFIG
 # -----------------------------
 color_map = {"Green": "#2ECC71", "Amber": "#F39C12", "Red": "#E74C3C"}
-risk_color_map = {"High": "#E74C3C", "Medium": "#F39C12", "Low": "#2ECC71"}
+risk_color_map = {
+    "Critical": "#E74C3C",
+    "Watchlist": "#F39C12",
+    "Low": "#2ECC71",
+    "High": "#E74C3C",
+    "Medium": "#F39C12"
+}
 health_icons = {"Green": "🟢 On Track", "Amber": "🟠 Watchlist", "Red": "🔴 Critical"}
 
 features = [
@@ -524,6 +532,17 @@ def get_top_drivers(row):
         "CPI Impact": 14 if row["cpi"] < 0.85 else 8 if row["cpi"] < 0.90 else 4 if row["cpi"] < 0.95 else 0
     }
     return [(k, round(v, 2)) for k, v in sorted(drivers.items(), key=lambda x: x[1], reverse=True) if v > 0][:5]
+
+def risk_driver_level(score):
+    """Risk-driver severity aligned with health cards.
+    14+ is Critical because SPI/CPI critical impacts contribute 14 points.
+    8-13.99 is Watchlist. Below 8 is Low.
+    """
+    if score >= 14:
+        return "Critical"
+    if score >= 8:
+        return "Watchlist"
+    return "Low"
 
 def override_status(prediction, risk_score, spi, cpi, delay_percent, risks, issues, sentiment):
     """Final status logic. It keeps low-risk projects Green even when one or two KPIs are watchlist-level."""
@@ -804,7 +823,7 @@ def create_health_chart(dimensions):
 def create_driver_chart(top_drivers):
     names = [x[0] for x in top_drivers]
     scores = [x[1] for x in top_drivers]
-    levels = ["High" if s >= 15 else "Medium" if s >= 8 else "Low" for s in scores]
+    levels = [risk_driver_level(s) for s in scores]
     colors_list = [risk_color_map[level] for level in levels]
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.bar(names, scores, color=colors_list)
@@ -901,9 +920,7 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
 
     if top_drivers:
         driver_df = pd.DataFrame(top_drivers, columns=["Driver", "Impact Score"])
-        driver_df["Risk Level"] = driver_df["Impact Score"].apply(
-            lambda x: "High" if x >= 20 else "Medium" if x >= 8 else "Low"
-        )
+        driver_df["Risk Level"] = driver_df["Impact Score"].apply(risk_driver_level)
 
         table_html = '<table class="driver-table"><tr><th>Driver</th><th>Impact Score</th><th>Risk Level</th></tr>'
         for _, rr in driver_df.iterrows():
