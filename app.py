@@ -108,7 +108,7 @@ if uploaded_file:
             reasons.append("Schedule delay is very high.")
         elif schedule_variance_days > 10:
             score += 1
-            reasons.append("Schedule delay needs attention.")
+            reasons.append("Schedule delay should be monitored.")
 
         if cost_variance_percent > 15:
             score += 3
@@ -172,34 +172,38 @@ if uploaded_file:
             box = st.success
 
             reasons = [
-            "Project KPIs are within acceptable thresholds.",
-            f"Cost performance is healthy with CPI at {cpi}.",
-            f"Schedule performance is healthy with SPI at {spi}.",
-            "Open risks and issues are low.",
-            f"Stakeholder sentiment is positive at {stakeholder_sentiment_score}/5."
-                    ]
+                "Project KPIs are within acceptable thresholds.",
+                f"Cost performance is healthy with CPI at {cpi}.",
+                f"Schedule performance is healthy with SPI at {spi}.",
+                "Open risks and issues are low.",
+                f"Stakeholder sentiment is positive at {stakeholder_sentiment_score}/5."
+            ]
 
-    if schedule_variance_days > 10:
-        reasons.append(
-            f"Observation: Schedule delay of {schedule_variance_days} days should be monitored, but it is not currently creating major delivery risk."
-        )
+            if schedule_variance_days > 10:
+                reasons.append(
+                    f"Observation: Schedule delay of {schedule_variance_days} days should be monitored, but it is not currently creating major delivery risk."
+                )
 
-        recommendation = """
-            The project appears stable. Continue monitoring schedule, cost, risks, and stakeholder communication.
-            Review milestone dependencies during weekly status meetings and maintain the current delivery rhythm.
-            """
+            recommendation = """
+The project appears stable. Continue monitoring schedule, cost, risks, and stakeholder communication.
+Review milestone dependencies during weekly status meetings and maintain the current delivery rhythm.
+"""
+
         elif score <= 9:
             status = "Amber"
             status_display = "🟠 Amber"
             box = st.warning
+
             recommendation = """
 The project needs attention. Review the main risk areas, tighten change control, and conduct a project checkpoint meeting.
 Focus on reducing delays, clearing issues, and improving stakeholder alignment.
 """
+
         else:
             status = "Red"
             status_display = "🔴 Red"
             box = st.error
+
             recommendation = """
 The project is at high risk. Immediate recovery action is needed.
 Escalate to leadership, rebaseline the schedule, review budget impact, freeze non-critical scope changes, and assign owners for major risks and issues.
@@ -209,11 +213,8 @@ Escalate to leadership, rebaseline the schedule, review budget impact, freeze no
         box(f"Predicted Project Health: {status_display}")
 
         st.markdown("### Key Reasons")
-        if reasons:
-            for reason in reasons:
-                st.write(f"- {reason}")
-        else:
-            st.write("- No major risk indicators detected.")
+        for reason in reasons:
+            st.write(f"- {reason}")
 
         st.markdown("### Recovery Recommendation")
         st.write(recommendation)
