@@ -6,6 +6,11 @@ import joblib
 from io import BytesIO
 import matplotlib.pyplot as plt
 import urllib.parse
+import os
+import json
+import re
+import urllib.request
+import urllib.error
 from xml.sax.saxutils import escape
 
 from reportlab.lib.pagesizes import A4
@@ -2343,6 +2348,249 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
 
     st.markdown("</div>", unsafe_allow_html=True)
 
+
+# -----------------------------
+# SIVA PM ADVISOR BOT
+# -----------------------------
+SIVA_ALLOWED_KEYWORDS = [
+    "project", "program", "programme", "portfolio", "pmo", "governance",
+    "pmbok", "pmi", "pmp", "capm", "agile", "scrum", "kanban", "waterfall",
+    "hybrid", "raid", "risk", "issue", "assumption", "dependency", "scope",
+    "schedule", "timeline", "milestone", "critical path", "cost", "budget",
+    "evm", "earned value", "spi", "cpi", "eac", "vac", "tcpi", "bac",
+    "stakeholder", "communication", "change control", "change request",
+    "resource", "capacity", "delivery", "recovery", "status report", "steering",
+    "escalation", "raci", "wbs", "sprint", "velocity", "backlog",
+    "acceptance criteria", "business case", "lessons learned", "retrospective",
+    "procurement", "vendor", "quality", "benefits realization", "roadmap"
+]
+
+SIVA_SYSTEM_PROMPT = """
+You are Siva, a Project and Program Management Advisor inside ProjectRescue AI.
+Answer only questions related to project management, program management, portfolio management,
+PMO governance, PMI/PMBOK, PMP/CAPM, Agile/Scrum/Waterfall/Hybrid delivery, RAID,
+Earned Value Management, project recovery, risk, issue, scope, schedule, cost, stakeholder,
+resources, change control, reporting, governance, and delivery leadership.
+
+If the user asks anything outside project/program/portfolio/PMO management, politely refuse and say:
+"I can help only with project, program, portfolio, PMO, Agile, RAID, EVM, risk, governance, and recovery topics."
+
+Keep answers practical, concise, and PMO-ready. Use examples when useful. Do not invent project facts.
+""".strip()
+
+
+def siva_is_pm_question(question: str) -> bool:
+    """Scope gate so Siva stays limited to project/program management topics."""
+    q = (question or "").lower()
+    return any(keyword in q for keyword in SIVA_ALLOWED_KEYWORDS)
+
+
+def get_secret_or_env(secret_name: str, env_name: str = None, default: str = "") -> str:
+    """Read API keys safely from Streamlit secrets or environment variables."""
+    env_name = env_name or secret_name
+    try:
+        value = st.secrets.get(secret_name, "")
+        if value:
+            return str(value)
+    except Exception:
+        pass
+    return os.getenv(env_name, default)
+
+
+def siva_local_answer(question: str) -> str:
+    """Fallback PM advisor response when no Gemini/OpenAI key is configured."""
+    q = (question or "").lower()
+
+    if "spi" in q:
+        return (
+            "SPI means Schedule Performance Index. It compares Earned Value against Planned Value. "
+            "SPI = EV / PV. SPI below 1.0 means the project is behind planned schedule performance; "
+            "SPI below 0.85 is usually a strong recovery signal in PMO reporting."
+        )
+    if "cpi" in q:
+        return (
+            "CPI means Cost Performance Index. It compares Earned Value against Actual Cost. "
+            "CPI = EV / AC. CPI below 1.0 means the project is spending more than the value it is earning; "
+            "CPI below 0.85 usually needs cost-control action and EAC/VAC review."
+        )
+    if "eac" in q or "vac" in q or "tcpi" in q or "evm" in q or "earned value" in q:
+        return (
+            "In EVM, BAC is the approved budget, EAC is the forecast final cost, VAC is BAC minus EAC, "
+            "and TCPI shows the cost efficiency needed to finish within budget. A negative VAC indicates forecast overrun. "
+            "For recovery, validate EV/AC accuracy first, then reforecast EAC and agree corrective actions."
+        )
+    if "raid" in q:
+        return (
+            "RAID stands for Risks, Assumptions, Issues, and Dependencies. A strong RAID log should include owner, due date, "
+            "impact, probability, mitigation/action, status, aging, and escalation path. Weak RAID governance usually causes surprises late in delivery."
+        )
+    if "red" in q or "critical" in q or "recover" in q or "recovery" in q:
+        return (
+            "For a Critical project, start with triage: validate scope, schedule, cost, RAID, blockers, decisions, and stakeholder expectations. "
+            "Then create a recovery plan with named owners, weekly governance, critical-path focus, cost-to-complete review, and executive decisions where needed."
+        )
+    if "stakeholder" in q:
+        return (
+            "Stakeholder management means identifying who can influence or is impacted by the project, understanding their expectations, "
+            "and managing communication, decisions, risks, and alignment. For weak sentiment, increase transparency and reset the communication cadence."
+        )
+    if "scope" in q or "change" in q:
+        return (
+            "Scope control ensures only approved work enters the project baseline. Use formal change control: capture request, assess impact, "
+            "review cost/schedule/risk effect, approve or reject, then update baseline and communication."
+        )
+
+    return (
+        "Siva can help with this from a PMO perspective. A practical way to approach it is: define the project objective, "
+        "confirm scope and success criteria, identify schedule/cost/RAID impacts, assign owners, agree governance cadence, "
+        "and track progress through measurable KPIs such as SPI, CPI, risks, issues, scope changes, and stakeholder sentiment."
+    )
+
+
+def call_gemini_siva(question: str, api_key: str, model_name: str) -> str:
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": f"{SIVA_SYSTEM_PROMPT}\n\nUser question: {question}"}
+                ]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.25,
+            "maxOutputTokens": 700
+        }
+    }
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+    with urllib.request.urlopen(req, timeout=45) as response:
+        data = json.loads(response.read().decode("utf-8"))
+    return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+
+def call_openai_siva(question: str, api_key: str, model_name: str) -> str:
+    url = "https://api.openai.com/v1/chat/completions"
+    payload = {
+        "model": model_name,
+        "messages": [
+            {"role": "system", "content": SIVA_SYSTEM_PROMPT},
+            {"role": "user", "content": question}
+        ],
+        "temperature": 0.25,
+        "max_tokens": 700
+    }
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        },
+        method="POST"
+    )
+    with urllib.request.urlopen(req, timeout=45) as response:
+        data = json.loads(response.read().decode("utf-8"))
+    return data["choices"][0]["message"]["content"].strip()
+
+
+def generate_siva_response(question: str, provider: str, model_name: str) -> tuple[str, str]:
+    """Gemini/GPT wrapper with safe local fallback."""
+    if not siva_is_pm_question(question):
+        return (
+            "I can help only with project, program, portfolio, PMO, Agile, RAID, EVM, risk, governance, and recovery topics.",
+            "Scope Guard"
+        )
+
+    provider = provider.lower().strip()
+    try:
+        if provider == "gemini":
+            api_key = get_secret_or_env("GEMINI_API_KEY")
+            if api_key:
+                return call_gemini_siva(question, api_key, model_name), "Gemini"
+        elif provider == "openai":
+            api_key = get_secret_or_env("OPENAI_API_KEY")
+            if api_key:
+                return call_openai_siva(question, api_key, model_name), "OpenAI"
+    except Exception as exc:
+        return (
+            f"Siva could not reach the selected AI provider, so here is a local PMO answer instead.\n\n{siva_local_answer(question)}\n\nProvider error: {exc}",
+            "Local Fallback"
+        )
+
+    return siva_local_answer(question), "Local PMO Fallback"
+
+
+def render_siva_bot():
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    section_header(
+        "Ask Siva",
+        "Gemini/GPT-style project, program, portfolio, PMO, RAID, EVM, Agile and PMBOK advisor"
+    )
+
+    st.write(
+        "Siva answers only project/program management questions. Use it to understand SPI, CPI, RAID, EVM, recovery plans, "
+        "PMO governance, Agile delivery, stakeholder management, and portfolio reporting."
+    )
+
+    if "siva_messages" not in st.session_state:
+        st.session_state.siva_messages = []
+
+    with st.expander("AI Provider Settings", expanded=False):
+        provider = st.selectbox(
+            "Provider",
+            ["Local PMO Fallback", "Gemini", "OpenAI"],
+            index=0,
+            help="Use Local PMO Fallback without an API key, or choose Gemini/OpenAI after adding API keys to Streamlit secrets."
+        )
+
+        if provider == "Gemini":
+            model_name = st.text_input("Gemini Model", "gemini-1.5-flash")
+            st.caption("Add GEMINI_API_KEY in Streamlit secrets or environment variables.")
+        elif provider == "OpenAI":
+            model_name = st.text_input("OpenAI Model", "gpt-4o-mini")
+            st.caption("Add OPENAI_API_KEY in Streamlit secrets or environment variables.")
+        else:
+            model_name = "local"
+            st.caption("No API key required. Uses built-in PMO guidance and scope guard.")
+
+    for message in st.session_state.siva_messages[-8:]:
+        role_label = "You" if message["role"] == "user" else "Siva"
+        st.markdown(f"**{role_label}:** {message['content']}")
+
+    with st.form("siva_advisor_form", clear_on_submit=True):
+        siva_question = st.text_area(
+            "Ask Siva a project/program management question",
+            placeholder="Example: My CPI is 0.78 and SPI is 0.82. How should I recover the project?",
+            height=120
+        )
+        ask_siva = st.form_submit_button("Ask Siva")
+
+    if ask_siva:
+        if not siva_question.strip():
+            st.warning("Please enter a question for Siva.")
+        else:
+            st.session_state.siva_messages.append({"role": "user", "content": siva_question.strip()})
+            selected_provider = "local" if provider == "Local PMO Fallback" else provider.lower()
+            with st.spinner("Siva is preparing a PMO-ready answer..."):
+                answer, source = generate_siva_response(siva_question.strip(), selected_provider, model_name)
+            st.session_state.siva_messages.append({"role": "assistant", "content": answer})
+            st.caption(f"Response source: {source}")
+            st.rerun()
+
+    clear_col, _ = st.columns([1, 4])
+    with clear_col:
+        if st.button("Clear Siva Chat", key="clear_siva_chat"):
+            st.session_state.siva_messages = []
+            st.rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
 # -----------------------------
 # MAIN UI
 # -----------------------------
@@ -2358,9 +2606,10 @@ if "manual_result" not in st.session_state:
     st.session_state.manual_result = None
 
 
-tab_csv, tab_manual = st.tabs([
+tab_csv, tab_manual, tab_siva = st.tabs([
     "Portfolio Assessment",
-    "Single Project Assessment"
+    "Single Project Assessment",
+    "Ask Siva"
 ])
 
 
@@ -2579,6 +2828,12 @@ with tab_manual:
 
         st.markdown("</div>", unsafe_allow_html=True)
         render_result(*st.session_state.manual_result)
+
+
+
+
+with tab_siva:
+    render_siva_bot()
 
 
 st.markdown("""
