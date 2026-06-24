@@ -420,12 +420,12 @@ input:-webkit-autofill:focus{
    ============================= */
 .exec-section-header {
     width: 100%;
-    background: linear-gradient(135deg, rgba(229,9,20,0.30), rgba(20,20,20,0.96));
-    border: 1px solid rgba(229,9,20,0.35);
-    border-left: 6px solid #E50914;
+    background: linear-gradient(135deg, rgba(255,255,255,0.075), rgba(16,16,16,0.96));
+    border: 1px solid rgba(255,255,255,0.12);
+    border-left: 6px solid #4DA3FF;
     border-radius: 18px;
     padding: 18px 22px;
-    margin: 34px 0 20px 0;
+    margin: 34px 0 22px 0;
     box-shadow: 0 18px 42px rgba(0,0,0,0.40);
 }
 .exec-section-title {
@@ -1935,18 +1935,54 @@ def create_portfolio_pdf_report(assessed_df, portfolio_file_name=None):
 
 
 def render_dimension_distribution(assessed_df):
-    """Portfolio dimension health section with count cards, chart, and styled table."""
+    """Portfolio dimension health section.
+
+    Do not show raw "dimension signal" counts as headline KPIs because a portfolio has
+    multiple dimension assessments per project. For example, 500 projects × 7 PMO
+    dimensions = 3,500 assessments. Executives should see percentages and a dimension
+    matrix, not misleading large raw signal totals.
+    """
     dim_df = portfolio_dimension_dataframe(assessed_df)
     if dim_df.empty:
         st.warning("No dimension health records were generated. Please verify the portfolio input columns.")
         return
 
     dim_counts = dim_df.groupby(["Dimension", "Health"]).size().reset_index(name="Project Count")
+    total_projects = len(assessed_df)
+    total_assessments = len(dim_df)
     totals = dim_df.groupby("Health").size().to_dict()
-    c1, c2, c3 = st.columns(3)
-    c1.metric("On Track Dimension Signals", int(totals.get("On Track", 0)))
-    c2.metric("Watchlist Dimension Signals", int(totals.get("Watchlist", 0)))
-    c3.metric("Critical Dimension Signals", int(totals.get("Critical", 0)))
+
+    ontrack_count = int(totals.get("On Track", 0))
+    watchlist_count = int(totals.get("Watchlist", 0))
+    critical_count = int(totals.get("Critical", 0))
+
+    ontrack_pct = (ontrack_count / total_assessments) * 100 if total_assessments else 0
+    watchlist_pct = (watchlist_count / total_assessments) * 100 if total_assessments else 0
+    critical_pct = (critical_count / total_assessments) * 100 if total_assessments else 0
+
+    st.caption(
+        f"Based on {total_assessments:,} PMO dimension assessments "
+        f"({total_projects:,} projects × {int(total_assessments / total_projects) if total_projects else 0} dimensions)."
+    )
+
+    c0, c1, c2, c3 = st.columns(4)
+    c0.metric("Dimension Assessments", f"{total_assessments:,}")
+    c1.metric("On Track", f"{ontrack_pct:.1f}%", f"{ontrack_count:,} assessments")
+    c2.metric("Watchlist", f"{watchlist_pct:.1f}%", f"{watchlist_count:,} assessments")
+    c3.metric("Critical", f"{critical_pct:.1f}%", f"{critical_count:,} assessments")
+
+    pivot = dim_counts.pivot_table(index="Dimension", columns="Health", values="Project Count", fill_value=0).reset_index()
+    for col in ["On Track", "Watchlist", "Critical"]:
+        if col not in pivot.columns:
+            pivot[col] = 0
+    pivot = pivot[["Dimension", "On Track", "Watchlist", "Critical"]]
+    pivot["Total Projects"] = pivot[["On Track", "Watchlist", "Critical"]].sum(axis=1)
+    pivot["Critical %"] = (pivot["Critical"] / pivot["Total Projects"] * 100).round(1)
+    pivot["Watchlist %"] = (pivot["Watchlist"] / pivot["Total Projects"] * 100).round(1)
+    pivot = pivot.sort_values(["Critical %", "Watchlist %"], ascending=False)
+
+    st.markdown("#### Dimension Health Matrix")
+    st.dataframe(styled_dataframe(pivot), use_container_width=True)
 
     fig_dim = px.bar(
         dim_counts,
@@ -1959,23 +1995,34 @@ def render_dimension_distribution(assessed_df):
         text="Project Count",
         barmode="group"
     )
-    fig_dim.update_traces(textposition="outside", marker_line_color="rgba(255,255,255,0.85)", marker_line_width=1.2)
+    fig_dim.update_traces(
+        textposition="outside",
+        marker_line_color="rgba(255,255,255,0.85)",
+        marker_line_width=1.2
+    )
     fig_dim.update_layout(
-        xaxis=dict(title="<b>PMO Dimension</b>", tickangle=-20, title_font=dict(size=17), tickfont=dict(size=14, color="#FFFFFF")),
-        yaxis=dict(title="<b>Project Count</b>", title_font=dict(size=17), tickfont=dict(size=14, color="#FFFFFF")),
-        legend=dict(title=dict(text="<b>Health</b>", font=dict(size=17, color="#FFFFFF")), font=dict(size=15, color="#FFFFFF")),
-        height=520,
-        margin=dict(t=80, b=120)
+        xaxis=dict(
+            title="<b>PMO Control Area</b>",
+            tickangle=-20,
+            title_font=dict(size=17),
+            tickfont=dict(size=14, color="#FFFFFF")
+        ),
+        yaxis=dict(
+            title="<b>Number of Projects</b>",
+            title_font=dict(size=17),
+            tickfont=dict(size=14, color="#FFFFFF")
+        ),
+        legend=dict(
+            title=dict(text="<b>Health</b>", font=dict(size=17, color="#FFFFFF")),
+            font=dict(size=15, color="#FFFFFF"),
+            bgcolor="rgba(20,20,20,0.88)",
+            bordercolor="rgba(255,255,255,0.25)",
+            borderwidth=1
+        ),
+        height=540,
+        margin=dict(t=80, b=130)
     )
     st.plotly_chart(dark_plot(fig_dim), use_container_width=True)
-
-    pivot = dim_counts.pivot_table(index="Dimension", columns="Health", values="Project Count", fill_value=0).reset_index()
-    for col in ["On Track", "Watchlist", "Critical"]:
-        if col not in pivot.columns:
-            pivot[col] = 0
-    pivot = pivot[["Dimension", "On Track", "Watchlist", "Critical"]]
-    st.dataframe(styled_dataframe(pivot), use_container_width=True)
-
 
 def portfolio_share_links(assessed_df, portfolio_file_name, summary_text):
     total_projects = len(assessed_df)
@@ -2274,7 +2321,7 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     st.caption("The report includes executive summary, EVM forecast, RAID maturity, health charts, KPI exposure, matrix views, bubble matrix, recovery actions, and critical project watchlist.")
     portfolio_pdf_buffer = create_portfolio_pdf_report(assessed_df, portfolio_file_name)
     st.download_button(
-        "Download PDF Report",
+        "Download Report",
         data=portfolio_pdf_buffer,
         file_name="project_rescue_portfolio_assessment_report.pdf",
         mime="application/pdf",
