@@ -420,13 +420,13 @@ input:-webkit-autofill:focus{
    ============================= */
 .exec-section-header {
     width: 100%;
-    background: linear-gradient(135deg, rgba(255,255,255,0.075), rgba(16,16,16,0.96));
-    border: 1px solid rgba(255,255,255,0.12);
-    border-left: 6px solid #4DA3FF;
+    background: linear-gradient(135deg, rgba(120,0,0,0.62), rgba(28,12,12,0.96), rgba(16,16,16,0.96));
+    border: 1px solid rgba(255,77,79,0.32);
+    border-left: 8px solid #FF4D4F;
     border-radius: 18px;
     padding: 18px 22px;
     margin: 34px 0 22px 0;
-    box-shadow: 0 18px 42px rgba(0,0,0,0.40);
+    box-shadow: 0 18px 42px rgba(0,0,0,0.40), 0 0 24px rgba(229,9,20,0.14);
 }
 .exec-section-title {
     font-size: 27px;
@@ -826,8 +826,10 @@ def calculate_tcpi(bac, ev, ac):
 def calculate_recovery_probability(row, final_status):
     """Practical PMO recovery probability from current health indicators.
 
-    This is not a promise; it is a decision-support estimate based on EVM, RAID,
+    This is a decision-support estimate, not a promise. It uses EVM, RAID,
     stakeholder alignment, variance severity, and remaining delivery runway.
+    Floors/caps are applied by final status so an On Track project cannot show
+    an unrealistic 0% recovery probability.
     """
     probability = 92.0
     probability -= max(0.95 - float(row["spi"]), 0) * 140
@@ -843,8 +845,12 @@ def calculate_recovery_probability(row, final_status):
 
     if final_status == "Red":
         probability -= 10
+        probability = min(probability, 65)
     elif final_status == "Amber":
         probability -= 3
+        probability = min(max(probability, 45), 85)
+    else:
+        probability = max(probability, 75)
 
     probability = round(max(min(probability, 95), 5), 1)
     if probability >= 75:
@@ -854,7 +860,6 @@ def calculate_recovery_probability(row, final_status):
     else:
         label = "Executive Intervention Required"
     return probability, label
-
 
 def generate_executive_narrative(row, final_status, priority, timeline):
     """Human-readable steering-committee narrative for single project assessment."""
@@ -2314,7 +2319,9 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
         "eac", "vac", "raid_maturity_score", "open_risks_count", "open_issues_count"
     ]
     available_cols = [c for c in watch_cols if c in assessed_df.columns]
-    priority_df = assessed_df.sort_values(["final_status", "risk_score"], ascending=[False, False])[available_cols]
+    priority_source = assessed_df.copy()
+    priority_source["_health_order"] = priority_source["final_status"].map({"Red": 3, "Amber": 2, "Green": 1}).fillna(0)
+    priority_df = priority_source.sort_values(["_health_order", "risk_score"], ascending=[False, False])[available_cols]
     st.dataframe(styled_dataframe(priority_df.head(25)), use_container_width=True)
 
     section_header("Export & Share", "Download the full portfolio PDF report or share the executive summary")
