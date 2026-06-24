@@ -463,37 +463,132 @@ def dark_plot(fig):
     )
     return fig
 
+
+# -----------------------------
+# PMI / PMBOK-ALIGNED RULE ENGINE
+# -----------------------------
+# The ML model is retained as a secondary signal, but final health is governed by
+# transparent PMO/EVM rules. This avoids contradictions such as Schedule = On Track
+# while SPI is Critical.
+
+SEVERITY_ORDER = {"Green": 0, "Amber": 1, "Red": 2}
+STATUS_ORDER = {"Green": 0, "Amber": 1, "Red": 2}
+
+
+def worst_health(*values):
+    """Return the worst health value among Green/Amber/Red dimensions."""
+    return max(values, key=lambda v: SEVERITY_ORDER.get(v, 0))
+
+
+def status_label(status):
+    """User-facing status labels."""
+    return {"Green": "On Track", "Amber": "Watchlist", "Red": "Critical"}.get(status, status)
+
+
+def evm_health(index_value):
+    """PMI/EVM-aligned SPI/CPI health.
+
+    SPI/CPI >= 0.95: within PMO tolerance
+    0.85 - 0.94: management watchlist
+    < 0.85: critical performance variance
+    """
+    if index_value >= 0.95:
+        return "Green"
+    if index_value >= 0.85:
+        return "Amber"
+    return "Red"
+
+
+def variance_health(percent_value, green_limit=5, amber_limit=15):
+    """Variance health for cost/schedule percentage variance."""
+    if percent_value <= green_limit:
+        return "Green"
+    if percent_value <= amber_limit:
+        return "Amber"
+    return "Red"
+
+
+def count_health(count_value, green_limit, amber_limit):
+    if count_value <= green_limit:
+        return "Green"
+    if count_value <= amber_limit:
+        return "Amber"
+    return "Red"
+
+
+def utilization_health(utilization):
+    """Resource utilization aligned to overload risk.
+
+    0-85%: sustainable
+    86-95%: watchlist / potential overload
+    >95%: critical overload risk
+    """
+    if utilization <= 85:
+        return "Green"
+    if utilization <= 95:
+        return "Amber"
+    return "Red"
+
+
+def sentiment_health(sentiment):
+    if sentiment >= 3.8:
+        return "Green"
+    if sentiment >= 2.8:
+        return "Amber"
+    return "Red"
+
+
 def calculate_risk_score(cost, schedule_pct, delay_days, spi, cpi, completed, risks, issues, scope, utilization, sentiment):
-    """Balanced PMO scoring: mild SPI/CPI movement is watchlist, not automatic risk escalation."""
-    score = 0
-    score += max(cost, 0) * 0.8
-    score += max(schedule_pct, 0) * 0.9
-    score += risks * 1.5
-    score += issues * 1.2
-    score += scope * 1.6
-    score += max(utilization - 85, 0) * 0.8
-    score += max(3.8 - sentiment, 0) * 5
+    """0-100 PMO risk score.
 
-    if spi < 0.85:
-        score += 14
+    The score is weighted toward Earned Value Management because PMI EVM practice
+    treats SPI and CPI as leading indicators of schedule and cost performance.
+    """
+    score = 0.0
+
+    # Direct variance exposure
+    score += max(cost, 0) * 0.80
+    score += max(schedule_pct, 0) * 0.70
+
+    # RAID/change exposure
+    score += max(risks, 0) * 1.50
+    score += max(issues, 0) * 1.20
+    score += max(scope, 0) * 1.50
+
+    # Resource and stakeholder exposure
+    score += max(utilization - 85, 0) * 0.90
+    score += max(3.8 - sentiment, 0) * 6.00
+
+    # EVM performance penalties. Severe SPI/CPI should materially influence final score.
+    if spi < 0.80:
+        score += 25
+    elif spi < 0.85:
+        score += 20
     elif spi < 0.90:
-        score += 8
+        score += 12
     elif spi < 0.95:
-        score += 4
-
-    if cpi < 0.85:
-        score += 14
-    elif cpi < 0.90:
-        score += 8
-    elif cpi < 0.95:
-        score += 4
-
-    if completed > 80 and score > 40:
         score += 6
 
-    return round(score, 2)
+    if cpi < 0.80:
+        score += 27
+    elif cpi < 0.85:
+        score += 22
+    elif cpi < 0.90:
+        score += 14
+    elif cpi < 0.95:
+        score += 7
+
+    # Late-stage projects with poor EVM performance have less room to recover.
+    if completed >= 70 and (spi < 0.90 or cpi < 0.90):
+        score += 5
+    if completed >= 85 and (spi < 0.95 or cpi < 0.95):
+        score += 5
+
+    return round(min(score, 100), 2)
+
 
 def classify_dimension(value, green_limit, amber_limit, reverse=False):
+    """Backward-compatible helper for charts/legacy calls."""
     if reverse:
         if value >= green_limit:
             return "Green"
@@ -506,78 +601,100 @@ def classify_dimension(value, green_limit, amber_limit, reverse=False):
         return "Amber"
     return "Red"
 
+
 def health_breakdown(row):
+    spi_h = evm_health(float(row["spi"]))
+    cpi_h = evm_health(float(row["cpi"]))
+    schedule_delay_h = variance_health(float(row["schedule_delay_percent"]), 5, 15)
+    cost_variance_h = variance_health(float(row["cost_variance_percent"]), 5, 15)
+
+    # Composite dimensions use the worst relevant indicator to avoid contradictory cards.
+    schedule_h = worst_health(schedule_delay_h, spi_h)
+    cost_h = worst_health(cost_variance_h, cpi_h)
+
     return {
-        "Schedule Health": classify_dimension(row["schedule_delay_percent"], 5, 15),
-        "Cost Health": classify_dimension(row["cost_variance_percent"], 5, 15),
-        "SPI Health": classify_dimension(row["spi"], 0.95, 0.85, reverse=True),
-        "CPI Health": classify_dimension(row["cpi"], 0.95, 0.85, reverse=True),
-        "Risk Health": classify_dimension(row["open_risks_count"], 3, 8),
-        "Issue Health": classify_dimension(row["open_issues_count"], 3, 8),
-        "Scope Health": classify_dimension(row["scope_changes_count"], 2, 5),
-        "Resource Health": classify_dimension(row["resource_utilization_percent"], 85, 95),
-        "Stakeholder Health": classify_dimension(row["stakeholder_sentiment_score"], 3.8, 2.8, reverse=True)
+        "Schedule Health": schedule_h,
+        "Cost Health": cost_h,
+        "SPI Health": spi_h,
+        "CPI Health": cpi_h,
+        "Risk Health": count_health(int(row["open_risks_count"]), 3, 8),
+        "Issue Health": count_health(int(row["open_issues_count"]), 3, 8),
+        "Scope Health": count_health(int(row["scope_changes_count"]), 2, 5),
+        "Resource Health": utilization_health(float(row["resource_utilization_percent"])),
+        "Stakeholder Health": sentiment_health(float(row["stakeholder_sentiment_score"]))
     }
+
 
 def get_top_drivers(row):
     drivers = {
-        "Cost Variance": row["cost_variance_percent"] * 0.8,
-        "Schedule Delay %": row["schedule_delay_percent"] * 0.9,
-        "Open Risks": row["open_risks_count"] * 1.5,
-        "Open Issues": row["open_issues_count"] * 1.2,
-        "Scope Changes": row["scope_changes_count"] * 1.6,
-        "Resource Overload": max(row["resource_utilization_percent"] - 85, 0) * 0.8,
-        "Stakeholder Concern": max(3.8 - row["stakeholder_sentiment_score"], 0) * 5,
-        "SPI Impact": 14 if row["spi"] < 0.85 else 8 if row["spi"] < 0.90 else 4 if row["spi"] < 0.95 else 0,
-        "CPI Impact": 14 if row["cpi"] < 0.85 else 8 if row["cpi"] < 0.90 else 4 if row["cpi"] < 0.95 else 0
+        "Cost Variance": max(float(row["cost_variance_percent"]), 0) * 0.8,
+        "Schedule Delay %": max(float(row["schedule_delay_percent"]), 0) * 0.7,
+        "Open Risks": int(row["open_risks_count"]) * 1.5,
+        "Open Issues": int(row["open_issues_count"]) * 1.2,
+        "Scope Changes": int(row["scope_changes_count"]) * 1.5,
+        "Resource Overload": max(float(row["resource_utilization_percent"]) - 85, 0) * 0.9,
+        "Stakeholder Concern": max(3.8 - float(row["stakeholder_sentiment_score"]), 0) * 6,
+        "SPI Impact": 25 if float(row["spi"]) < 0.80 else 20 if float(row["spi"]) < 0.85 else 12 if float(row["spi"]) < 0.90 else 6 if float(row["spi"]) < 0.95 else 0,
+        "CPI Impact": 27 if float(row["cpi"]) < 0.80 else 22 if float(row["cpi"]) < 0.85 else 14 if float(row["cpi"]) < 0.90 else 7 if float(row["cpi"]) < 0.95 else 0
     }
     return [(k, round(v, 2)) for k, v in sorted(drivers.items(), key=lambda x: x[1], reverse=True) if v > 0][:5]
 
+
 def risk_driver_level(score):
-    """Risk-driver severity aligned with health cards.
-    14+ is Critical because SPI/CPI critical impacts contribute 14 points.
-    8-13.99 is Watchlist. Below 8 is Low.
-    """
-    if score >= 14:
+    if score >= 20:
         return "Critical"
     if score >= 8:
         return "Watchlist"
     return "Low"
 
+
 def override_status(prediction, risk_score, spi, cpi, delay_percent, risks, issues, sentiment):
-    """Final status logic. It keeps low-risk projects Green even when one or two KPIs are watchlist-level."""
-    if risk_score >= 75 or spi < 0.80 or cpi < 0.80 or delay_percent >= 25 or risks >= 10 or issues >= 10 or sentiment < 2.5:
-        return "Red"
+    """Final project health rule.
 
-    if risk_score >= 35 or spi < 0.90 or cpi < 0.90 or delay_percent >= 12 or risks >= 7 or issues >= 7 or sentiment < 3.0:
-        return "Amber"
+    PMBOK-style governance: severe EVM variance can override otherwise healthy
+    qualitative indicators. A project cannot be Green when SPI/CPI is materially weak.
+    """
+    dimension_statuses = [
+        variance_health(delay_percent, 5, 15),
+        evm_health(spi),
+        evm_health(cpi),
+        count_health(risks, 3, 8),
+        count_health(issues, 3, 8),
+        sentiment_health(sentiment),
+        "Red" if risk_score >= 60 else "Amber" if risk_score >= 35 else "Green"
+    ]
 
-    if risk_score < 35 and delay_percent < 12 and risks < 7 and issues < 7 and sentiment >= 3.0:
-        return "Green"
+    rule_status = worst_health(*dimension_statuses)
 
-    return prediction
+    # Permit model to escalate, but never allow it to downgrade the rule-based status.
+    if prediction in STATUS_ORDER and STATUS_ORDER[prediction] > STATUS_ORDER[rule_status]:
+        return prediction
+
+    return rule_status
+
 
 def sanity_check_status(status, row):
     severe = []
-    if row["cost_variance_percent"] >= 20:
-        severe.append("Cost variance is severe")
-    if row["schedule_delay_percent"] >= 25:
-        severe.append("Schedule delay is severe compared to project duration")
-    if row["spi"] < 0.85:
-        severe.append("SPI is critically low")
-    if row["cpi"] < 0.85:
-        severe.append("CPI is critically low")
-    if row["open_risks_count"] >= 10:
+    dims = health_breakdown(row)
+
+    if dims["Schedule Health"] == "Red":
+        severe.append("Schedule performance is critical")
+    if dims["Cost Health"] == "Red":
+        severe.append("Cost performance is critical")
+    if dims["Risk Health"] == "Red":
         severe.append("Open risk count is high")
-    if row["open_issues_count"] >= 10:
+    if dims["Issue Health"] == "Red":
         severe.append("Open issue count is high")
-    if row["stakeholder_sentiment_score"] < 2.5:
+    if dims["Stakeholder Health"] == "Red":
         severe.append("Stakeholder sentiment is low")
 
-    if status == "Red" and not severe:
-        return "Amber", severe
+    # Never allow the final status to be lower than the worst health card.
+    worst_dim = worst_health(*dims.values())
+    if STATUS_ORDER[worst_dim] > STATUS_ORDER[status]:
+        status = worst_dim
 
     return status, severe
+
 
 def recovery_timeline(status, row):
     if status == "Green":
@@ -588,9 +705,10 @@ def recovery_timeline(status, row):
         if row["schedule_delay_percent"] >= 10 or row["spi"] < 0.95:
             return "3-5 weeks"
         return "2-4 weeks"
-    if row["risk_score"] >= 90 or row["schedule_delay_percent"] >= 25:
+    if row["risk_score"] >= 85 or row["schedule_delay_percent"] >= 25 or row["cpi"] < 0.75:
         return "8-12 weeks"
     return "6-8 weeks"
+
 
 def escalation_required(status, row):
     if status == "Red":
@@ -601,8 +719,8 @@ def escalation_required(status, row):
         return "Monitor"
     return "No"
 
+
 def summarize_dimension_watchlist(row, status):
-    """Create a summary phrase that stays consistent with the dimension cards."""
     dims = health_breakdown(row)
     red_dims = [name.replace(" Health", "") for name, value in dims.items() if value == "Red"]
     amber_dims = [name.replace(" Health", "") for name, value in dims.items() if value == "Amber"]
@@ -613,86 +731,81 @@ def summarize_dimension_watchlist(row, status):
         return f"Watchlist areas: {', '.join(amber_dims)}."
     return "All assessed dimensions are within acceptable PMO tolerance."
 
+
 def generate_recovery_plan(row, status):
     reasons, actions = [], []
 
-    if row["schedule_delay_percent"] >= 20 or row["schedule_variance_days"] >= 30:
+    if row["schedule_delay_percent"] > 15 or row["schedule_variance_days"] >= 30:
         reasons.append(f"Schedule delay is significant at {row['schedule_variance_days']} days, equal to {row['schedule_delay_percent']}% of planned duration.")
         actions.append("Rebaseline the delivery plan and split remaining work into recovery milestones.")
-    elif row["schedule_delay_percent"] >= 10 or row["schedule_variance_days"] >= 15:
+    elif row["schedule_delay_percent"] > 5 or row["schedule_variance_days"] >= 15:
         reasons.append(f"Schedule delay is moderate at {row['schedule_variance_days']} days and requires management attention.")
         actions.append("Review milestone dependencies and remove blockers affecting the critical path.")
 
     if row["spi"] < 0.85:
-        reasons.append(f"SPI is {row['spi']}, indicating serious schedule performance risk.")
-        actions.append("Increase delivery cadence reviews and track planned vs completed work weekly.")
-    elif row["spi"] < 0.90:
-        reasons.append(f"SPI is {row['spi']}, showing meaningful schedule slippage against plan.")
-        actions.append("Review sprint velocity or milestone delivery performance.")
-    elif row["spi"] < 0.95 and status != "Green":
-        reasons.append(f"SPI is {row['spi']}, showing a watchlist-level schedule variance.")
-        actions.append("Monitor milestone delivery trend in the next status review.")
+        reasons.append(f"SPI is {row['spi']}, indicating critical schedule performance variance.")
+        actions.append("Increase delivery cadence reviews, validate earned value, and recover critical-path work packages.")
+    elif row["spi"] < 0.95:
+        reasons.append(f"SPI is {row['spi']}, showing schedule performance below PMO tolerance.")
+        actions.append("Review milestone delivery performance and correct planned-vs-earned work gaps.")
 
-    if row["cost_variance_percent"] >= 20:
+    if row["cost_variance_percent"] > 15:
         reasons.append(f"Cost variance is high at {row['cost_variance_percent']}%, which may require budget escalation.")
-        actions.append("Perform budget impact analysis and stop non-essential spending.")
-    elif row["cost_variance_percent"] >= 10:
+        actions.append("Perform budget impact analysis and stop or defer non-essential spend.")
+    elif row["cost_variance_percent"] > 5:
         reasons.append(f"Cost variance is moderate at {row['cost_variance_percent']}% and should be reviewed.")
-        actions.append("Review vendor/resource costs and validate remaining forecast.")
+        actions.append("Review vendor/resource costs and validate Estimate at Completion.")
 
     if row["cpi"] < 0.85:
-        reasons.append(f"CPI is {row['cpi']}, indicating poor cost efficiency.")
-        actions.append("Review cost burn rate and identify low-value activities.")
-    elif row["cpi"] < 0.90:
-        reasons.append(f"CPI is {row['cpi']}, showing meaningful cost performance concern.")
+        reasons.append(f"CPI is {row['cpi']}, indicating critical cost efficiency variance.")
+        actions.append("Review cost burn rate, remove low-value activities, and reset cost-to-complete controls.")
+    elif row["cpi"] < 0.95:
+        reasons.append(f"CPI is {row['cpi']}, showing cost performance below PMO tolerance.")
         actions.append("Tighten budget tracking and review cost-to-complete.")
-    elif row["cpi"] < 0.95 and status != "Green":
-        reasons.append(f"CPI is {row['cpi']}, showing a watchlist-level cost variance.")
-        actions.append("Monitor cost-to-complete and validate next forecast cycle.")
 
-    if row["open_risks_count"] >= 10:
+    if row["open_risks_count"] > 8:
         reasons.append(f"There are {row['open_risks_count']} open risks, which may threaten delivery outcomes.")
         actions.append("Escalate top risks to steering committee with owners and due dates.")
-    elif row["open_risks_count"] >= 5:
+    elif row["open_risks_count"] > 3:
         reasons.append(f"There are {row['open_risks_count']} open risks requiring active mitigation.")
         actions.append("Update RAID log and assign mitigation owners.")
 
-    if row["open_issues_count"] >= 10:
+    if row["open_issues_count"] > 8:
         reasons.append(f"There are {row['open_issues_count']} open issues, which may be blocking execution.")
         actions.append("Create an issue war-room and resolve high-impact blockers first.")
-    elif row["open_issues_count"] >= 5:
+    elif row["open_issues_count"] > 3:
         reasons.append(f"There are {row['open_issues_count']} open issues requiring faster resolution.")
         actions.append("Assign issue owners and review blockers every 48 hours.")
 
-    if row["scope_changes_count"] >= 7:
+    if row["scope_changes_count"] > 5:
         reasons.append(f"Scope volatility is high with {row['scope_changes_count']} scope changes.")
-        actions.append("Freeze non-critical scope and enforce change control.")
-    elif row["scope_changes_count"] >= 4:
+        actions.append("Freeze non-critical scope and enforce formal change control.")
+    elif row["scope_changes_count"] > 2:
         reasons.append(f"There are {row['scope_changes_count']} scope changes, which should be controlled.")
-        actions.append("Prioritize only business-critical changes.")
+        actions.append("Prioritize only business-critical changes through change control.")
 
-    if row["resource_utilization_percent"] >= 95:
+    if row["resource_utilization_percent"] > 95:
         reasons.append(f"Resource utilization is critically high at {row['resource_utilization_percent']}%.")
         actions.append("Add temporary support or rebalance workload to reduce burnout risk.")
-    elif row["resource_utilization_percent"] >= 88:
+    elif row["resource_utilization_percent"] > 85:
         reasons.append(f"Resource utilization is high at {row['resource_utilization_percent']}%.")
         actions.append("Review workload distribution across the team.")
 
-    if row["stakeholder_sentiment_score"] < 2.5:
+    if row["stakeholder_sentiment_score"] < 2.8:
         reasons.append(f"Stakeholder sentiment is low at {row['stakeholder_sentiment_score']}/5.")
         actions.append("Conduct stakeholder alignment meeting and reset communication cadence.")
-    elif row["stakeholder_sentiment_score"] < 3.5:
-        reasons.append(f"Stakeholder sentiment is neutral at {row['stakeholder_sentiment_score']}/5 and needs improvement.")
+    elif row["stakeholder_sentiment_score"] < 3.8:
+        reasons.append(f"Stakeholder sentiment is watchlist-level at {row['stakeholder_sentiment_score']}/5.")
         actions.append("Increase stakeholder updates and clarify expectations.")
 
-    if row["project_type"] == "Procurement Automation" and (row["cost_variance_percent"] >= 10 or row["cpi"] < 0.95):
+    if row["project_type"] == "Procurement Automation" and (row["cost_variance_percent"] > 5 or row["cpi"] < 0.95):
         actions.extend([
             "Reforecast Estimate at Completion for procurement spend.",
             "Review vendor contracts, invoices, and approval delays.",
             "Freeze non-essential procurement requests until budget variance is controlled."
         ])
 
-    if row["project_type"] == "Cloud Migration" and (row["schedule_delay_percent"] >= 10 or row["spi"] < 0.95):
+    if row["project_type"] == "Cloud Migration" and (row["schedule_delay_percent"] > 5 or row["spi"] < 0.95):
         actions.append("Review migration wave plan, cutover readiness, and rollback strategy.")
 
     if row["project_type"] == "ERP Implementation" and status in ["Amber", "Red"]:
@@ -718,34 +831,35 @@ def generate_recovery_plan(row, status):
 
     timeline = recovery_timeline(status, row)
     escalation = escalation_required(status, row)
-
     dimension_note = summarize_dimension_watchlist(row, status)
+    readable_status = status_label(status)
 
     if status == "Red":
         priority = "High"
         summary = (
-            f"This {row['project_type']} project is classified as Red with a risk score of {row['risk_score']}. "
+            f"This {row['project_type']} project is classified as {readable_status} with a risk score of {row['risk_score']}. "
             f"{dimension_note} Immediate recovery governance, leadership visibility, and owner-driven corrective actions are required. "
             f"Estimated recovery timeline is {timeline}."
         )
     elif status == "Amber":
         priority = "Medium"
         summary = (
-            f"This {row['project_type']} project is classified as Amber with a risk score of {row['risk_score']}. "
+            f"This {row['project_type']} project is classified as {readable_status} with a risk score of {row['risk_score']}. "
             f"{dimension_note} The project appears recoverable within {timeline} if corrective actions are taken now."
         )
     else:
         priority = "Low"
         summary = (
-            f"This {row['project_type']} project is classified as Green with a risk score of {row['risk_score']}. "
+            f"This {row['project_type']} project is classified as {readable_status} with a risk score of {row['risk_score']}. "
             f"{dimension_note} Continue standard PMO monitoring and review watchlist items during the next status cycle."
         )
 
     return summary, priority, reasons, actions, timeline, escalation
 
+
 def assess_project(row):
     duration = max(float(row.get("project_duration_days", 180)), 1)
-    schedule_days = float(row["schedule_variance_days"])
+    schedule_days = max(float(row["schedule_variance_days"]), 0)
     schedule_pct = float(row.get("schedule_variance_percent", round((schedule_days / duration) * 100, 2)))
 
     risk_score = calculate_risk_score(
