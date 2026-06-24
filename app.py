@@ -768,7 +768,7 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
         <div style="font-size:42px;font-weight:900;margin-top:6px;">{health_icons[final_status]}</div>
         <div class="result-grid">
             <div class="result-metric"><div class="result-label">Confidence</div><div class="result-value">{confidence}%</div></div>
-            <div class="result-metric"><div class="result-label">Risk Score</div><div class="result-value">{result_row["risk_score"]}</div></div>
+            <div class="result-metric"><div class="result-label">Risk Score</div><div class="result-value">{result_row['risk_score']}</div></div>
             <div class="result-metric"><div class="result-label">Recovery Priority</div><div class="result-value">{priority}</div></div>
             <div class="result-metric"><div class="result-label">Timeline</div><div class="result-value">{timeline}</div></div>
             <div class="result-metric"><div class="result-label">Escalation</div><div class="result-value">{escalation}</div></div>
@@ -784,23 +784,37 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.markdown("### Health Breakdown by Dimension")
     health_html = '<div class="health-grid">'
-    for k, v in dimensions.items():
-        health_html += f'<div class="health-tile health-{v.lower()}"><div class="health-name">{k}</div><div class="health-value">{health_icons[v]}</div></div>'
+    for dimension_name, health_value in dimensions.items():
+        health_html += (
+            f'<div class="health-tile health-{health_value.lower()}">'
+            f'<div class="health-name">{dimension_name}</div>'
+            f'<div class="health-value">{health_icons[health_value]}</div>'
+            '</div>'
+        )
     health_html += '</div>'
     st.markdown(health_html, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.markdown("### Top Risk Drivers")
+
     if top_drivers:
         driver_df = pd.DataFrame(top_drivers, columns=["Driver", "Impact Score"])
-        driver_df["Risk Level"] = driver_df["Impact Score"].apply(lambda x: "High" if x >= 20 else "Medium" if x >= 8 else "Low")
+        driver_df["Risk Level"] = driver_df["Impact Score"].apply(
+            lambda x: "High" if x >= 20 else "Medium" if x >= 8 else "Low"
+        )
+
         table_html = '<table class="driver-table"><tr><th>Driver</th><th>Impact Score</th><th>Risk Level</th></tr>'
         for _, rr in driver_df.iterrows():
             level = rr["Risk Level"]
-            table_html += f'<tr><td>{rr["Driver"]}</td><td>{rr["Impact Score"]}</td><td><span class="driver-badge driver-{level.lower()}">{level}</span></td></tr>'
+            table_html += (
+                f'<tr><td>{rr["Driver"]}</td>'
+                f'<td>{rr["Impact Score"]}</td>'
+                f'<td><span class="driver-badge driver-{level.lower()}">{level}</span></td></tr>'
+            )
         table_html += '</table>'
         st.markdown(table_html, unsafe_allow_html=True)
+
         fig_driver = px.bar(
             driver_df,
             x="Driver",
@@ -815,90 +829,86 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
             textposition="outside",
             marker_line_color="rgba(255,255,255,0.9)",
             marker_line_width=2,
-            opacity=0.95
+            opacity=0.96
         )
 
         fig_driver.update_layout(
             template="plotly_dark",
             paper_bgcolor="#0B0B0B",
             plot_bgcolor="#0B0B0B",
-            font=dict(
-                color="#FFFFFF",
-                size=15,
-                family="Inter"
-            ),
-            title=dict(
-                text="<b>Risk Driver Impact</b>",
-                font=dict(size=28, color="#FFFFFF")
-            ),
+            font=dict(color="#FFFFFF", size=15, family="Inter"),
+            title=dict(text="<b>Risk Driver Impact</b>", font=dict(size=28, color="#FFFFFF")),
             xaxis=dict(
                 title="<b>Driver</b>",
                 title_font=dict(size=18, color="#FFFFFF"),
-                tickfont=dict(size=15, color="#FFFFFF"),
+                tickfont=dict(size=15, color="#FFFFFF", family="Inter"),
                 showgrid=False
             ),
             yaxis=dict(
                 title="<b>Impact Score</b>",
                 title_font=dict(size=18, color="#FFFFFF"),
-                tickfont=dict(size=15, color="#FFFFFF"),
+                tickfont=dict(size=15, color="#FFFFFF", family="Inter"),
                 gridcolor="rgba(255,255,255,0.18)"
             ),
             legend=dict(
-                title=dict(
-                    text="<b>Risk Level</b>",
-                    font=dict(size=16, color="#FFFFFF")
-                ),
+                title=dict(text="<b>Risk Level</b>", font=dict(size=16, color="#FFFFFF")),
                 font=dict(size=15, color="#FFFFFF"),
                 bgcolor="rgba(20,20,20,0.85)",
                 bordercolor="rgba(255,255,255,0.25)",
                 borderwidth=1
-            )
+            ),
+            bargap=0.35
         )
 
         st.plotly_chart(fig_driver, use_container_width=True)
+    else:
+        st.write("No major risk drivers detected.")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.markdown("### Key Reasons")
-
     for reason in reasons:
         st.write(f"• {reason}")
 
     st.markdown("### Recommended Recovery Actions")
-
     for action in actions:
         st.write(f"• {action}")
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-st.markdown('<div class="panel">', unsafe_allow_html=True)
-st.markdown("### Key Reasons")
-    for reason in reasons:
-        st.write(f"- {reason}")
-
-    st.markdown("### Recommended Recovery Actions")
-    for action in actions:
-        st.write(f"- {action}")
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.markdown("### Export & Share")
+
     pdf_buffer = create_pdf_report(
-        result_row["project_name"], final_status, confidence, result_row["risk_score"],
-        priority, timeline, escalation, summary, dimensions, top_drivers, reasons, actions, result_row
+        result_row["project_name"],
+        final_status,
+        confidence,
+        result_row["risk_score"],
+        priority,
+        timeline,
+        escalation,
+        summary,
+        dimensions,
+        top_drivers,
+        reasons,
+        actions,
+        result_row
     )
 
     st.download_button(
         label="Download PDF Report",
         data=pdf_buffer,
         file_name=f"{result_row['project_name'].replace(' ', '_')}_assessment_report.pdf",
-        mime="application/pdf"
+        mime="application/pdf",
+        key=f"download_pdf_{result_row['project_name']}_{result_row['risk_score']}"
     )
 
     reasons_text = "\n".join([f"- {r}" for r in reasons])
     actions_text = "\n".join([f"- {a}" for a in actions])
-    top_drivers_text = "\n".join([f"- {driver}: {score}" for driver, score in top_drivers]) if top_drivers else "No major risk drivers detected."
+    top_drivers_text = (
+        "\n".join([f"- {driver}: {score}" for driver, score in top_drivers])
+        if top_drivers else "No major risk drivers detected."
+    )
 
     share_text = f"""
 ProjectRescue AI Assessment Report
@@ -939,6 +949,7 @@ Generated by ProjectRescue AI | ThinkLab.pm
         st.link_button("Share Summary on WhatsApp", whatsapp_url)
     with c2:
         st.link_button("Share Summary via Gmail", gmail_url)
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 # -----------------------------
