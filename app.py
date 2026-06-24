@@ -714,6 +714,99 @@ def calculate_evm_forecast(bac, cpi):
     return round(eac, 2), round(vac, 2), round(vac_percent, 2)
 
 
+
+def calculate_tcpi(bac, ev, ac):
+    """To-Complete Performance Index.
+
+    TCPI = (BAC - EV) / (BAC - AC). Values > 1.10 usually indicate that
+    the remaining work needs materially better cost performance than current trend.
+    """
+    bac = max(float(bac), 0.0)
+    ev = min(max(float(ev), 0.0), bac)
+    ac = max(float(ac), 0.0)
+    denom = bac - ac
+    if bac <= 0 or denom <= 0:
+        return None
+    return round((bac - ev) / denom, 2)
+
+
+def calculate_recovery_probability(row, final_status):
+    """Practical PMO recovery probability from current health indicators.
+
+    This is not a promise; it is a decision-support estimate based on EVM, RAID,
+    stakeholder alignment, variance severity, and remaining delivery runway.
+    """
+    probability = 92.0
+    probability -= max(0.95 - float(row["spi"]), 0) * 140
+    probability -= max(0.95 - float(row["cpi"]), 0) * 150
+    probability -= max(float(row["cost_variance_percent"]) - 5, 0) * 0.9
+    probability -= max(float(row["schedule_delay_percent"]) - 5, 0) * 0.8
+    probability -= max(int(row["open_risks_count"]) - 3, 0) * 2.0
+    probability -= max(int(row["open_issues_count"]) - 2, 0) * 2.5
+    probability -= max(int(row["scope_changes_count"]) - 2, 0) * 2.0
+    probability -= max(3.8 - float(row["stakeholder_sentiment_score"]), 0) * 8
+    probability -= max(75 - float(row["raid_maturity_score"]), 0) * 0.5
+    probability -= max(float(row["completed_tasks_percent"]) - 80, 0) * 0.4
+
+    if final_status == "Red":
+        probability -= 10
+    elif final_status == "Amber":
+        probability -= 3
+
+    probability = round(max(min(probability, 95), 5), 1)
+    if probability >= 75:
+        label = "Likely Recoverable"
+    elif probability >= 50:
+        label = "Recoverable with Management Action"
+    else:
+        label = "Executive Intervention Required"
+    return probability, label
+
+
+def generate_executive_narrative(row, final_status, priority, timeline):
+    """Human-readable steering-committee narrative for single project assessment."""
+    status = status_label(final_status)
+    dims = health_breakdown(row)
+    watch_or_critical = [name for name, val in dims.items() if val in ["Amber", "Red"]]
+    stable = [name for name, val in dims.items() if val == "Green"]
+
+    if watch_or_critical:
+        concern_text = ", ".join(watch_or_critical[:4])
+    else:
+        concern_text = "no major control area"
+
+    stable_text = ", ".join(stable[:3]) if stable else "limited control areas"
+
+    if final_status == "Red":
+        lead = "The project requires immediate recovery governance."
+    elif final_status == "Amber":
+        lead = "The project is manageable but showing early warning indicators."
+    else:
+        lead = "The project is operating within current PMO tolerance."
+
+    return (
+        f"{lead} Current health is {status}, with primary attention needed in {concern_text}. "
+        f"Stable areas include {stable_text}. Recovery priority is {priority}, with an estimated timeline of {timeline}. "
+        f"EVM forecast shows EAC {row['eac']:,.0f} against BAC {row['budget_at_completion']:,.0f}, "
+        f"and RAID maturity is {row['raid_maturity_score']}/100 ({row['raid_maturity_label']})."
+    )
+
+
+def build_trend_placeholder(row):
+    """Creates a compact trend dataset when historical records are not available.
+
+    It is labelled as illustrative, not historical, to avoid misleading users.
+    """
+    return pd.DataFrame({
+        "Indicator": ["SPI", "CPI", "Risk Score"],
+        "Current Value": [float(row["spi"]), float(row["cpi"]), float(row["risk_score"])],
+        "Trend Signal": [
+            "Stable" if float(row["spi"]) >= 0.95 else "Declining / Needs Review",
+            "Stable" if float(row["cpi"]) >= 0.95 else "Declining / Needs Review",
+            "Low" if float(row["risk_score"]) < 35 else "Elevated" if float(row["risk_score"]) < 70 else "High"
+        ]
+    })
+
 def raid_maturity_score(row):
     """Proxy RAID maturity score from available inputs.
 
@@ -1082,11 +1175,20 @@ def assess_project(row):
     result_row["eac"], result_row["vac"], result_row["vac_percent"] = calculate_evm_forecast(
         result_row["budget_at_completion"], result_row["cpi"]
     )
+    # EV/AC are estimated from BAC, completed %, and CPI because the current UI captures BAC, SPI, and CPI.
+    # This enables practical PMBOK-style TCPI guidance without adding duplicate input fields.
+    result_row["earned_value"] = round(result_row["budget_at_completion"] * (result_row["completed_tasks_percent"] / 100), 2)
+    result_row["actual_cost"] = round(result_row["earned_value"] / max(result_row["cpi"], 0.01), 2)
+    result_row["tcpi"] = calculate_tcpi(result_row["budget_at_completion"], result_row["earned_value"], result_row["actual_cost"])
     result_row["raid_maturity_score"] = raid_maturity_score(result_row)
     result_row["raid_maturity_label"] = raid_maturity_label(result_row["raid_maturity_score"])
 
     final_status, severe_drivers = sanity_check_status(final_status, result_row)
+    recovery_probability, recovery_probability_label = calculate_recovery_probability(result_row, final_status)
+    result_row["recovery_probability"] = recovery_probability
+    result_row["recovery_probability_label"] = recovery_probability_label
     summary, priority, reasons, actions, timeline, escalation = generate_recovery_plan(result_row, final_status)
+    result_row["executive_narrative"] = generate_executive_narrative(result_row, final_status, priority, timeline)
 
     return result_row, prediction, final_status, confidence, severe_drivers, summary, priority, reasons, actions, timeline, escalation
 
@@ -1141,12 +1243,17 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
     story.append(Paragraph(f"<b>BAC:</b> {result_row['budget_at_completion']:,.2f}", styles["Normal"]))
     story.append(Paragraph(f"<b>EAC:</b> {result_row['eac']:,.2f}", styles["Normal"]))
     story.append(Paragraph(f"<b>VAC:</b> {result_row['vac']:,.2f} ({result_row['vac_percent']:.1f}%)", styles["Normal"]))
+    story.append(Paragraph(f"<b>TCPI:</b> {'N/A' if result_row.get('tcpi') is None else result_row['tcpi']}", styles["Normal"]))
+    story.append(Paragraph(f"<b>Recovery Probability:</b> {result_row.get('recovery_probability', 0):.1f}% - {escape(str(result_row.get('recovery_probability_label', '')))}", styles["Normal"]))
     story.append(Paragraph(f"<b>RAID Maturity:</b> {result_row['raid_maturity_score']}/100 - {result_row['raid_maturity_label']}", styles["Normal"]))
     story.append(Paragraph(f"<b>Recovery Priority:</b> {priority}", styles["Normal"]))
     story.append(Paragraph(f"<b>Recovery Timeline:</b> {timeline}", styles["Normal"]))
     story.append(Paragraph(f"<b>Executive Escalation:</b> {escalation}", styles["Normal"]))
     story.append(Spacer(1, 12))
 
+    story.append(Paragraph("Executive Narrative", styles["Heading2"]))
+    story.append(Paragraph(escape(str(result_row.get("executive_narrative", summary))), styles["Normal"]))
+    story.append(Spacer(1, 8))
     story.append(Paragraph("Executive Summary", styles["Heading2"]))
     story.append(Paragraph(summary, styles["Normal"]))
     story.append(Spacer(1, 12))
@@ -1193,18 +1300,25 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     """, unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown("### Executive Narrative")
+    st.write(result_row.get("executive_narrative", summary))
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.markdown("### Executive Summary")
     st.write(summary)
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown("### EVM Forecast & RAID Maturity")
-    f1, f2, f3, f4 = st.columns(4)
+    st.markdown("### EVM Forecast, Recovery Probability & RAID Maturity")
+    f1, f2, f3, f4, f5, f6 = st.columns(6)
     f1.metric("BAC", f"{result_row['budget_at_completion']:,.0f}")
     f2.metric("EAC", f"{result_row['eac']:,.0f}")
     f3.metric("VAC", f"{result_row['vac']:,.0f}", f"{result_row['vac_percent']:.1f}%")
-    f4.metric("RAID Maturity", f"{result_row['raid_maturity_score']}/100", result_row['raid_maturity_label'])
-    st.caption("EAC = BAC / CPI. VAC = BAC - EAC. Negative VAC indicates a forecast budget overrun.")
+    f4.metric("TCPI", "N/A" if result_row.get('tcpi') is None else f"{result_row['tcpi']:.2f}")
+    f5.metric("Recovery Probability", f"{result_row.get('recovery_probability', 0):.1f}%", result_row.get('recovery_probability_label', ''))
+    f6.metric("RAID Maturity", f"{result_row['raid_maturity_score']}/100", result_row['raid_maturity_label'])
+    st.caption("EAC = BAC / CPI. VAC = BAC - EAC. TCPI estimates the cost performance needed to finish within BAC. Negative VAC indicates a forecast budget overrun.")
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
@@ -1288,6 +1402,13 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     else:
         st.write("No major risk drivers detected.")
 
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown("### Trend Analysis")
+    st.caption("Historical trend data is not available in the current input. The table below shows current trend signals based on PMI/EVM tolerance thresholds.")
+    trend_df = build_trend_placeholder(result_row)
+    st.dataframe(trend_df, use_container_width=True, hide_index=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
