@@ -413,6 +413,76 @@ input:-webkit-autofill:focus{
     box-shadow:0 0 0px 1000px #141414 inset !important;
 }
 
+
+
+/* =============================
+   EXECUTIVE SECTION / TABLE POLISH
+   ============================= */
+.exec-section-header {
+    width: 100%;
+    background: linear-gradient(135deg, rgba(229,9,20,0.30), rgba(20,20,20,0.96));
+    border: 1px solid rgba(229,9,20,0.35);
+    border-left: 6px solid #E50914;
+    border-radius: 18px;
+    padding: 18px 22px;
+    margin: 34px 0 20px 0;
+    box-shadow: 0 18px 42px rgba(0,0,0,0.40);
+}
+.exec-section-title {
+    font-size: 27px;
+    font-weight: 900;
+    color: #FFFFFF !important;
+    letter-spacing: -0.4px;
+    margin: 0;
+}
+.exec-section-subtitle {
+    font-size: 13px;
+    color: #CFCFCF !important;
+    margin-top: 6px;
+}
+.section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, rgba(229,9,20,0.55), rgba(255,255,255,0.08), transparent);
+    margin: 26px 0;
+}
+.portfolio-summary-card {
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 18px;
+    padding: 18px 20px;
+    margin: 10px 0 22px 0;
+    line-height: 1.65;
+}
+.table-note {
+    color: #BDBDBD !important;
+    font-size: 13px;
+    margin-top: 10px;
+}
+.driver-table th {
+    text-align: center !important;
+    font-weight: 900 !important;
+    color: #FFFFFF !important;
+    background: rgba(255,255,255,0.055) !important;
+}
+.driver-table td {
+    vertical-align: middle !important;
+}
+.driver-table td:nth-child(2),
+.driver-table td:nth-child(3),
+.driver-table td:nth-child(4),
+.driver-table td:nth-child(5) {
+    text-align: center !important;
+}
+[data-testid="stDataFrame"] thead tr th,
+[data-testid="stTable"] thead tr th {
+    text-align: center !important;
+    font-weight: 900 !important;
+    color: #111827 !important;
+}
+[data-testid="stMetric"] {
+    padding: 6px 0 12px 0;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -476,6 +546,29 @@ def dark_plot(fig):
     )
     return fig
 
+
+
+
+def section_header(title, subtitle=None):
+    """Full-width executive heading bar used consistently across Single and Portfolio views."""
+    subtitle_html = f'<div class="exec-section-subtitle">{subtitle}</div>' if subtitle else ''
+    st.markdown(
+        f'<div class="exec-section-header"><div class="exec-section-title">{title}</div>{subtitle_html}</div>',
+        unsafe_allow_html=True
+    )
+
+
+def styled_dataframe(df, center=True):
+    """Return a pandas Styler with bold, centered table headings for executive readability."""
+    styler = df.style.set_table_styles([
+        {'selector': 'th', 'props': [('text-align', 'center'), ('font-weight', '900')]},
+        {'selector': 'td', 'props': [('text-align', 'center' if center else 'left')]}
+    ])
+    try:
+        styler = styler.hide(axis='index')
+    except Exception:
+        pass
+    return styler
 
 def polish_3d_portfolio_chart(fig):
     """Make the 3D portfolio chart executive-readable with bold titles and clear legends."""
@@ -1300,17 +1393,12 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     """, unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown("### Executive Narrative")
+    section_header("Executive Narrative", "Single source of truth for the project assessment narrative")
     st.write(result_row.get("executive_narrative", summary))
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown("### Executive Summary")
-    st.write(summary)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown("### EVM Forecast, Recovery Probability & RAID Maturity")
+    section_header("EVM Forecast, Recovery Probability & RAID Maturity", "PMBOK/EVM forecast and governance readiness")
     f1, f2, f3, f4, f5, f6 = st.columns(6)
     f1.metric("BAC", f"{result_row['budget_at_completion']:,.0f}")
     f2.metric("EAC", f"{result_row['eac']:,.0f}")
@@ -1322,7 +1410,7 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown("### Health Breakdown by Dimension")
+    section_header("Health Breakdown by Dimension", "PMO control areas without duplicate SPI/CPI cards")
     health_html = '<div class="health-grid">'
     for dimension_name, health_value in dimensions.items():
         health_html += (
@@ -1336,7 +1424,7 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown("### Top KPI Risk Drivers")
+    section_header("Top KPI Risk Drivers", "Actual KPI values, risk level, and PMO signal")
 
     if top_drivers:
         driver_df = pd.DataFrame(top_drivers)
@@ -1405,24 +1493,24 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown("### Trend Analysis")
+    section_header("Trend Analysis", "Current signal until historical trend fields are supplied")
     st.caption("Historical trend data is not available in the current input. The table below shows current trend signals based on PMI/EVM tolerance thresholds.")
     trend_df = build_trend_placeholder(result_row)
     st.dataframe(trend_df, use_container_width=True, hide_index=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown("### Key Reasons")
+    section_header("Key Reasons & Recovery Actions", "Why the project received this health status and what to do next")
     for reason in reasons:
         st.write(f"• {reason}")
 
-    st.markdown("### Recommended Recovery Actions")
+    st.markdown("#### Recommended Recovery Actions")
     for action in actions:
         st.write(f"• {action}")
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown("### Export & Share")
+    section_header("Export & Share", "Download the PDF report or share the executive summary")
 
     pdf_buffer = create_pdf_report(
         result_row["project_name"],
@@ -1845,8 +1933,92 @@ def create_portfolio_pdf_report(assessed_df, portfolio_file_name=None):
     return buffer
 
 
+
+def render_dimension_distribution(assessed_df):
+    """Portfolio dimension health section with count cards, chart, and styled table."""
+    dim_df = portfolio_dimension_dataframe(assessed_df)
+    if dim_df.empty:
+        st.warning("No dimension health records were generated. Please verify the portfolio input columns.")
+        return
+
+    dim_counts = dim_df.groupby(["Dimension", "Health"]).size().reset_index(name="Project Count")
+    totals = dim_df.groupby("Health").size().to_dict()
+    c1, c2, c3 = st.columns(3)
+    c1.metric("On Track Dimension Signals", int(totals.get("On Track", 0)))
+    c2.metric("Watchlist Dimension Signals", int(totals.get("Watchlist", 0)))
+    c3.metric("Critical Dimension Signals", int(totals.get("Critical", 0)))
+
+    fig_dim = px.bar(
+        dim_counts,
+        x="Dimension",
+        y="Project Count",
+        color="Health",
+        title="<b>Portfolio Dimension Health Distribution</b>",
+        category_orders={"Health": ["On Track", "Watchlist", "Critical"]},
+        color_discrete_map=color_map,
+        text="Project Count",
+        barmode="group"
+    )
+    fig_dim.update_traces(textposition="outside", marker_line_color="rgba(255,255,255,0.85)", marker_line_width=1.2)
+    fig_dim.update_layout(
+        xaxis=dict(title="<b>PMO Dimension</b>", tickangle=-20, title_font=dict(size=17), tickfont=dict(size=14, color="#FFFFFF")),
+        yaxis=dict(title="<b>Project Count</b>", title_font=dict(size=17), tickfont=dict(size=14, color="#FFFFFF")),
+        legend=dict(title=dict(text="<b>Health</b>", font=dict(size=17, color="#FFFFFF")), font=dict(size=15, color="#FFFFFF")),
+        height=520,
+        margin=dict(t=80, b=120)
+    )
+    st.plotly_chart(dark_plot(fig_dim), use_container_width=True)
+
+    pivot = dim_counts.pivot_table(index="Dimension", columns="Health", values="Project Count", fill_value=0).reset_index()
+    for col in ["On Track", "Watchlist", "Critical"]:
+        if col not in pivot.columns:
+            pivot[col] = 0
+    pivot = pivot[["Dimension", "On Track", "Watchlist", "Critical"]]
+    st.dataframe(styled_dataframe(pivot), use_container_width=True)
+
+
+def portfolio_share_links(assessed_df, portfolio_file_name, summary_text):
+    total_projects = len(assessed_df)
+    critical_projects = int((assessed_df["final_status"] == "Red").sum())
+    watchlist_projects = int((assessed_df["final_status"] == "Amber").sum())
+    ontrack_projects = int((assessed_df["final_status"] == "Green").sum())
+    avg_risk = round(assessed_df["risk_score"].mean(), 2)
+    avg_raid = round(assessed_df["raid_maturity_score"].mean(), 1)
+    total_bac = float(assessed_df["budget_at_completion"].sum()) if "budget_at_completion" in assessed_df else 0
+    total_eac = float(assessed_df["eac"].sum()) if "eac" in assessed_df else 0
+    total_vac = float(assessed_df["vac"].sum()) if "vac" in assessed_df else 0
+    actions_text = "\n".join([f"- {a}" for a in portfolio_recovery_actions(assessed_df)])
+    share_text = f"""
+ProjectRescue AI Portfolio Assessment Report
+
+File: {portfolio_file_name or 'Portfolio CSV'}
+Projects Assessed: {total_projects}
+On Track: {ontrack_projects}
+Watchlist: {watchlist_projects}
+Critical: {critical_projects}
+Average Risk Score: {avg_risk}
+Average RAID Maturity: {avg_raid}/100
+Total BAC: {total_bac:,.0f}
+Total EAC: {total_eac:,.0f}
+Total Forecast VAC: {total_vac:,.0f}
+
+Executive Summary:
+{summary_text}
+
+Portfolio Recovery Actions:
+{actions_text}
+
+Note: The full PDF report includes health charts, KPI exposure, matrix views, bubble matrix, and critical project watchlist.
+
+Generated by ProjectRescue AI | ThinkLab.pm
+""".strip()
+    encoded_text = urllib.parse.quote(share_text)
+    encoded_subject = urllib.parse.quote("ProjectRescue AI Portfolio Report")
+    return f"https://wa.me/?text={encoded_text}", f"https://mail.google.com/mail/?view=cm&fs=1&su={encoded_subject}&body={encoded_text}"
+
+
 def render_portfolio_results(assessed_df, portfolio_file_name=None):
-    """Detailed portfolio view matching the depth of Single Project Assessment."""
+    """Detailed portfolio view with executive spacing, working dimension breakdown, and export/share options."""
     st.markdown('<div class="panel">', unsafe_allow_html=True)
 
     header_col, clear_col = st.columns([4, 1])
@@ -1872,6 +2044,7 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     total_eac = float(assessed_df["eac"].sum()) if "eac" in assessed_df else 0
     total_vac = float(assessed_df["vac"].sum()) if "vac" in assessed_df else 0
 
+    section_header("Executive Portfolio Command Center", "Portfolio-level KPIs for steering committee review")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total Projects", total_projects)
     c2.metric("Critical Projects", critical_projects)
@@ -1884,15 +2057,17 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     c7.metric("Total BAC", f"{total_bac:,.0f}")
     c8.metric("Total Forecast VAC", f"{total_vac:,.0f}")
 
-    st.markdown("### Portfolio Executive Summary")
-    st.write(
+    section_header("Portfolio Executive Summary", "Plain-language interpretation of portfolio health")
+    summary_text = (
         f"This portfolio contains {total_projects} projects: {ontrack_projects} On Track, "
         f"{watchlist_projects} Watchlist, and {critical_projects} Critical. "
         f"Average risk score is {avg_risk}, average RAID maturity is {avg_raid}/100, "
-        f"and total forecast variance at completion is {total_vac:,.0f}."
+        f"and total forecast variance at completion is {total_vac:,.0f}. "
+        f"Executive attention should focus first on Critical projects and then on Watchlist projects with weak RAID governance or negative VAC."
     )
+    st.markdown(f'<div class="portfolio-summary-card">{summary_text}</div>', unsafe_allow_html=True)
 
-    st.markdown("### Portfolio EVM Forecast & RAID Maturity")
+    section_header("Portfolio EVM Forecast & RAID Maturity", "PMBOK/EVM forecast aggregated at portfolio level")
     e1, e2, e3, e4 = st.columns(4)
     e1.metric("Total BAC", f"{total_bac:,.0f}")
     e2.metric("Total EAC", f"{total_eac:,.0f}")
@@ -1900,6 +2075,7 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     e4.metric("Avg RAID Maturity", f"{avg_raid}/100")
     st.caption("EAC = BAC / CPI at project level. VAC = BAC - EAC. Negative VAC indicates forecast budget overrun.")
 
+    section_header("Portfolio Health Charts", "Health distribution and 3D risk positioning")
     col1, col2 = st.columns(2)
     with col1:
         status_order = ["On Track", "Watchlist", "Critical"]
@@ -1913,6 +2089,7 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
             hole=0.45
         )
         fig1.update_traces(textinfo="percent+label", marker=dict(line=dict(color="#111111", width=2)))
+        fig1.update_layout(height=520, margin=dict(t=70, b=50))
         st.plotly_chart(dark_plot(fig1), use_container_width=True)
 
     with col2:
@@ -1927,33 +2104,15 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
             category_orders={"portfolio_health": status_order},
             color_discrete_map=color_map
         )
+        fig2.update_layout(height=520, margin=dict(t=70, b=40))
         st.plotly_chart(polish_3d_portfolio_chart(dark_plot(fig2)), use_container_width=True)
 
-    st.markdown("### Health Breakdown by Dimension")
-    dim_df = portfolio_dimension_dataframe(assessed_df)
-    dim_counts = dim_df.groupby(["Dimension", "Health"]).size().reset_index(name="Project Count")
-    fig_dim = px.bar(
-        dim_counts,
-        x="Dimension",
-        y="Project Count",
-        color="Health",
-        title="<b>Portfolio Dimension Health Distribution</b>",
-        category_orders={"Health": ["On Track", "Watchlist", "Critical"]},
-        color_discrete_map=color_map,
-        text="Project Count"
-    )
-    fig_dim.update_traces(textposition="outside")
-    fig_dim.update_layout(
-        barmode="group",
-        xaxis=dict(title="<b>PMO Dimension</b>", tickangle=-20, title_font=dict(size=16), tickfont=dict(size=13)),
-        yaxis=dict(title="<b>Project Count</b>", title_font=dict(size=16)),
-        legend=dict(title=dict(text="<b>Health</b>"), font=dict(size=15))
-    )
-    st.plotly_chart(dark_plot(fig_dim), use_container_width=True)
+    section_header("Health Breakdown by Dimension", "Cross-portfolio status of PMO control areas")
+    render_dimension_distribution(assessed_df)
 
-    st.markdown("### Top Portfolio KPI Risk Drivers")
+    section_header("Top Portfolio KPI Risk Drivers", "Critical and Watchlist exposure by KPI")
     driver_summary = portfolio_kpi_driver_summary(assessed_df)
-    st.dataframe(driver_summary, use_container_width=True, hide_index=True)
+    st.dataframe(styled_dataframe(driver_summary), use_container_width=True)
 
     fig_driver = px.bar(
         driver_summary.head(8),
@@ -1969,19 +2128,18 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     )
     fig_driver.update_traces(marker_line_color="rgba(255,255,255,0.85)", marker_line_width=1.5)
     fig_driver.update_layout(
-        xaxis=dict(title="<b>KPI Driver</b>", tickangle=-20, title_font=dict(size=16), tickfont=dict(size=14, color="#FFFFFF")),
-        yaxis=dict(title="<b>Number of Projects</b>", title_font=dict(size=16), tickfont=dict(size=14, color="#FFFFFF")),
-        legend=dict(title=dict(text="<b>Exposure Level</b>", font=dict(size=17, color="#FFFFFF")), font=dict(size=15, color="#FFFFFF"))
+        xaxis=dict(title="<b>KPI Driver</b>", tickangle=-20, title_font=dict(size=17), tickfont=dict(size=14, color="#FFFFFF")),
+        yaxis=dict(title="<b>Number of Projects</b>", title_font=dict(size=17), tickfont=dict(size=14, color="#FFFFFF")),
+        legend=dict(title=dict(text="<b>Exposure Level</b>", font=dict(size=17, color="#FFFFFF")), font=dict(size=15, color="#FFFFFF")),
+        height=560,
+        margin=dict(t=80, b=120)
     )
     st.plotly_chart(dark_plot(fig_driver), use_container_width=True)
 
-    st.markdown("### Portfolio Matrix View")
+    section_header("Portfolio Matrix View", "Matrix colors show severity; cell numbers show project count")
     m1, m2 = st.columns(2)
     schedule_cost_matrix = portfolio_health_matrix(assessed_df)
     priority_matrix = portfolio_priority_matrix(assessed_df)
-
-    # Heatmap color is based on risk severity, not count volume.
-    # This prevents healthy high-volume cells from appearing red.
     matrix_colorscale = [
         [0.0, "#173D25"], [0.49, "#173D25"],
         [0.50, "#7A5200"], [0.74, "#7A5200"],
@@ -2017,10 +2175,11 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
             paper_bgcolor="#0B0B0B",
             plot_bgcolor="#0B0B0B",
             font=dict(color="#FFFFFF", family="Inter"),
-            height=430
+            height=450,
+            margin=dict(t=80, b=70)
         )
         st.plotly_chart(fig_matrix, use_container_width=True)
-        st.dataframe(schedule_cost_matrix, use_container_width=True)
+        st.dataframe(styled_dataframe(schedule_cost_matrix.reset_index().rename(columns={"index": "Schedule Performance"})), use_container_width=True)
 
     with m2:
         st.markdown("#### Risk Score vs RAID Governance Matrix")
@@ -2052,14 +2211,15 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
             paper_bgcolor="#0B0B0B",
             plot_bgcolor="#0B0B0B",
             font=dict(color="#FFFFFF", family="Inter"),
-            height=430
+            height=450,
+            margin=dict(t=80, b=70)
         )
         st.plotly_chart(fig_priority, use_container_width=True)
-        st.dataframe(priority_matrix, use_container_width=True)
+        st.dataframe(styled_dataframe(priority_matrix.reset_index().rename(columns={"index": "Risk Band"})), use_container_width=True)
 
-    st.caption("Matrix colors show severity: green = healthy/managed, amber = watchlist, red = critical. Cell numbers show project count.")
+    st.markdown('<div class="table-note">Matrix colors show severity: green = healthy/managed, amber = watchlist, red = critical. Cell numbers show project count.</div>', unsafe_allow_html=True)
 
-    st.markdown("### Portfolio Bubble Matrix")
+    section_header("Portfolio Bubble Matrix", "Budget-weighted view of schedule delay vs cost variance")
     bubble_df = assessed_df.copy()
     bubble_df["Portfolio Health"] = bubble_df["final_status"].apply(status_label)
     bubble_df["Bubble Size"] = bubble_df.get("budget_at_completion", pd.Series([100000] * len(bubble_df))).astype(float).clip(lower=1)
@@ -2081,13 +2241,14 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
         title="<b>Schedule Delay vs Cost Variance Bubble Matrix</b>",
         category_orders={"Portfolio Health": ["On Track", "Watchlist", "Critical"]},
         color_discrete_map=color_map,
-        size_max=28
+        size_max=30
     )
     fig_bubble.update_layout(
-        xaxis=dict(title="<b>Schedule Delay %</b>", title_font=dict(size=16), tickfont=dict(size=13)),
-        yaxis=dict(title="<b>Cost Variance %</b>", title_font=dict(size=16), tickfont=dict(size=13)),
+        xaxis=dict(title="<b>Schedule Delay %</b>", title_font=dict(size=17), tickfont=dict(size=14)),
+        yaxis=dict(title="<b>Cost Variance %</b>", title_font=dict(size=17), tickfont=dict(size=14)),
         legend=dict(title=dict(text="<b>Project Health</b>", font=dict(size=17, color="#FFFFFF")), font=dict(size=15, color="#FFFFFF")),
-        height=520
+        height=560,
+        margin=dict(t=80, b=70)
     )
     fig_bubble.add_vline(x=5, line_dash="dash", line_color="rgba(255,255,255,0.35)")
     fig_bubble.add_vline(x=15, line_dash="dash", line_color="rgba(255,255,255,0.35)")
@@ -2095,25 +2256,23 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     fig_bubble.add_hline(y=15, line_dash="dash", line_color="rgba(255,255,255,0.35)")
     st.plotly_chart(dark_plot(fig_bubble), use_container_width=True)
 
-    st.markdown("### Portfolio Recovery Actions")
+    section_header("Portfolio Recovery Actions", "Prioritized governance actions for the portfolio")
     for action in portfolio_recovery_actions(assessed_df):
         st.write(f"• {action}")
 
-    st.markdown("### Critical Project Watchlist")
+    section_header("Critical Project Watchlist", "Top projects requiring management attention")
     watch_cols = [
-        "project_name", "project_type", "final_status", "risk_score", "recovery_priority",
+        "project_name", "project_type", "portfolio_health", "risk_score", "recovery_priority",
         "executive_escalation", "spi", "cpi", "cost_variance_percent", "schedule_delay_percent",
         "eac", "vac", "raid_maturity_score", "open_risks_count", "open_issues_count"
     ]
     available_cols = [c for c in watch_cols if c in assessed_df.columns]
     priority_df = assessed_df.sort_values(["final_status", "risk_score"], ascending=[False, False])[available_cols]
-    st.dataframe(priority_df.head(25), use_container_width=True, hide_index=True)
+    st.dataframe(styled_dataframe(priority_df.head(25)), use_container_width=True)
 
-    st.markdown("### Download Portfolio Report")
-    st.caption("The report includes the executive summary, portfolio EVM forecast, RAID maturity, health distribution, KPI exposure, matrix views, recovery actions, and critical project watchlist.")
-
+    section_header("Export & Share", "Download the full portfolio PDF report or share the executive summary")
+    st.caption("The report includes executive summary, EVM forecast, RAID maturity, health charts, KPI exposure, matrix views, bubble matrix, recovery actions, and critical project watchlist.")
     portfolio_pdf_buffer = create_portfolio_pdf_report(assessed_df, portfolio_file_name)
-
     st.download_button(
         "Download Report",
         data=portfolio_pdf_buffer,
@@ -2121,6 +2280,12 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
         mime="application/pdf",
         key="download_portfolio_pdf_report"
     )
+    whatsapp_url, gmail_url = portfolio_share_links(assessed_df, portfolio_file_name, summary_text)
+    s1, s2 = st.columns(2)
+    with s1:
+        st.link_button("Share Summary on WhatsApp", whatsapp_url)
+    with s2:
+        st.link_button("Share Summary via Gmail", gmail_url)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
