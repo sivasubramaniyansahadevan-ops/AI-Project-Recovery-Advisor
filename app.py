@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 
 st.set_page_config(
     page_title="ProjectRescue AI",
@@ -6,17 +7,19 @@ st.set_page_config(
 )
 
 st.title("🚀 ProjectRescue AI")
-
 st.subheader("AI-Powered Project Recovery Advisor")
 
-st.success("Application successfully deployed!")
+uploaded_file = st.file_uploader(
+    "Upload Project CSV",
+    type=["csv"]
+)
 
-st.write("""
-This application will:
+if uploaded_file:
 
-- Upload project data
-- Predict project health
-- Analyze risks
-- Generate AI recovery plans
-- Visualize project performance
-""")
+    df = pd.read_csv(uploaded_file)
+
+    st.success("File Uploaded Successfully")
+
+    st.dataframe(df.head())
+
+    st.write("Total Projects:", len(df))
