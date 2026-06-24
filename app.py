@@ -603,50 +603,152 @@ def classify_dimension(value, green_limit, amber_limit, reverse=False):
 
 
 def health_breakdown(row):
+    """Non-duplicated PMO dimension cards.
+
+    SPI is embedded inside Schedule Performance.
+    CPI is embedded inside Cost Performance.
+    This removes duplicate Schedule/SPI and Cost/CPI cards while keeping the logic EVM-aligned.
+    """
     spi_h = evm_health(float(row["spi"]))
     cpi_h = evm_health(float(row["cpi"]))
     schedule_delay_h = variance_health(float(row["schedule_delay_percent"]), 5, 15)
     cost_variance_h = variance_health(float(row["cost_variance_percent"]), 5, 15)
 
-    # Composite dimensions use the worst relevant indicator to avoid contradictory cards.
     schedule_h = worst_health(schedule_delay_h, spi_h)
     cost_h = worst_health(cost_variance_h, cpi_h)
 
+    risk_h = count_health(int(row["open_risks_count"]), 3, 8)
+    issue_h = count_health(int(row["open_issues_count"]), 3, 8)
+    scope_h = count_health(int(row["scope_changes_count"]), 2, 5)
+    raid_h = raid_maturity_health(row)
+
     return {
-        "Schedule Health": schedule_h,
-        "Cost Health": cost_h,
-        "SPI Health": spi_h,
-        "CPI Health": cpi_h,
-        "Risk Health": count_health(int(row["open_risks_count"]), 3, 8),
-        "Issue Health": count_health(int(row["open_issues_count"]), 3, 8),
-        "Scope Health": count_health(int(row["scope_changes_count"]), 2, 5),
-        "Resource Health": utilization_health(float(row["resource_utilization_percent"])),
-        "Stakeholder Health": sentiment_health(float(row["stakeholder_sentiment_score"]))
+        "Schedule Performance": schedule_h,
+        "Cost Performance": cost_h,
+        "RAID Governance": raid_h,
+        "Scope Control": scope_h,
+        "Resource Capacity": utilization_health(float(row["resource_utilization_percent"])),
+        "Stakeholder Alignment": sentiment_health(float(row["stakeholder_sentiment_score"])),
+        "Delivery Progress": progress_health(row)
     }
 
 
+def progress_health(row):
+    """Progress view used as a soft indicator, not a hard override.
+
+    A completed-task percentage alone should not make a project critical because it depends
+    on where the project is in its lifecycle. This only flags very low progress when EVM
+    signals are also poor.
+    """
+    completed = float(row["completed_tasks_percent"])
+    spi = float(row["spi"])
+    if completed < 40 and spi < 0.85:
+        return "Red"
+    if completed < 60 and spi < 0.95:
+        return "Amber"
+    return "Green"
+
+
+def calculate_evm_forecast(bac, cpi):
+    """PMBOK/EVM forecasting.
+
+    EAC = BAC / CPI assumes future cost performance continues at the current CPI.
+    VAC = BAC - EAC. Negative VAC means expected budget overrun.
+    """
+    bac = max(float(bac), 0)
+    cpi = max(float(cpi), 0.01)
+    eac = bac / cpi
+    vac = bac - eac
+    vac_percent = (vac / bac) * 100 if bac > 0 else 0
+    return round(eac, 2), round(vac, 2), round(vac_percent, 2)
+
+
+def raid_maturity_score(row):
+    """Proxy RAID maturity score from available fields.
+
+    The app has direct inputs for Risks and Issues. Scope changes are treated as a change-control
+    proxy, while stakeholder sentiment is used as a governance/communication proxy.
+    """
+    risks = int(row["open_risks_count"])
+    issues = int(row["open_issues_count"])
+    scope = int(row["scope_changes_count"])
+    sentiment = float(row["stakeholder_sentiment_score"])
+
+    risk_score = 100 if risks <= 3 else 70 if risks <= 8 else 35
+    issue_score = 100 if issues <= 3 else 70 if issues <= 8 else 35
+    change_score = 100 if scope <= 2 else 70 if scope <= 5 else 35
+    stakeholder_score = 100 if sentiment >= 3.8 else 70 if sentiment >= 2.8 else 35
+
+    score = (risk_score * 0.30) + (issue_score * 0.30) + (change_score * 0.20) + (stakeholder_score * 0.20)
+    return round(score, 1)
+
+
+def raid_maturity_health(row):
+    score = float(row.get("raid_maturity_score", raid_maturity_score(row)))
+    if score >= 80:
+        return "Green"
+    if score >= 60:
+        return "Amber"
+    return "Red"
+
+
+def raid_maturity_label(score):
+    if score >= 80:
+        return "Mature"
+    if score >= 60:
+        return "Developing"
+    return "Weak"
+
+
+def kpi_severity_level(status):
+    return {"Green": "Low", "Amber": "Watchlist", "Red": "Critical"}[status]
+
+
+def kpi_severity_score(status):
+    return {"Green": 1, "Amber": 2, "Red": 3}[status]
+
+
+def get_top_kpis(row):
+    """Executive-friendly drivers using actual KPI values, not arbitrary impact points."""
+    kpis = []
+
+    def add(driver, value, health, signal):
+        kpis.append({
+            "Driver": driver,
+            "KPI Value": value,
+            "Risk Level": kpi_severity_level(health),
+            "PMO Signal": signal,
+            "Severity Score": kpi_severity_score(health)
+        })
+
+    add("CPI", f"{float(row['cpi']):.2f}", evm_health(float(row["cpi"])), "Cost efficiency / earned value")
+    add("SPI", f"{float(row['spi']):.2f}", evm_health(float(row["spi"])), "Schedule efficiency / earned value")
+    add("Cost Variance", f"{float(row['cost_variance_percent']):.1f}%", variance_health(float(row["cost_variance_percent"]), 5, 15), "Budget variance")
+    add("Schedule Delay", f"{float(row['schedule_delay_percent']):.1f}% / {float(row['schedule_variance_days']):.0f} days", variance_health(float(row["schedule_delay_percent"]), 5, 15), "Time variance")
+    add("Open Risks", f"{int(row['open_risks_count'])}", count_health(int(row["open_risks_count"]), 3, 8), "RAID exposure")
+    add("Open Issues", f"{int(row['open_issues_count'])}", count_health(int(row["open_issues_count"]), 3, 8), "Execution blockers")
+    add("Scope Changes", f"{int(row['scope_changes_count'])}", count_health(int(row["scope_changes_count"]), 2, 5), "Change control")
+    add("Resource Utilization", f"{float(row['resource_utilization_percent']):.0f}%", utilization_health(float(row["resource_utilization_percent"])), "Capacity / overload")
+    add("Stakeholder Sentiment", f"{float(row['stakeholder_sentiment_score']):.1f}/5", sentiment_health(float(row["stakeholder_sentiment_score"])), "Stakeholder alignment")
+    add("RAID Maturity", f"{float(row['raid_maturity_score']):.1f}/100", raid_maturity_health(row), "Governance discipline")
+
+    return sorted(kpis, key=lambda x: x["Severity Score"], reverse=True)[:6]
+
+
+# Backward-compatible name used by existing render/export code.
 def get_top_drivers(row):
-    drivers = {
-        "Cost Variance": max(float(row["cost_variance_percent"]), 0) * 0.8,
-        "Schedule Delay %": max(float(row["schedule_delay_percent"]), 0) * 0.7,
-        "Open Risks": int(row["open_risks_count"]) * 1.5,
-        "Open Issues": int(row["open_issues_count"]) * 1.2,
-        "Scope Changes": int(row["scope_changes_count"]) * 1.5,
-        "Resource Overload": max(float(row["resource_utilization_percent"]) - 85, 0) * 0.9,
-        "Stakeholder Concern": max(3.8 - float(row["stakeholder_sentiment_score"]), 0) * 6,
-        "SPI Impact": 25 if float(row["spi"]) < 0.80 else 20 if float(row["spi"]) < 0.85 else 12 if float(row["spi"]) < 0.90 else 6 if float(row["spi"]) < 0.95 else 0,
-        "CPI Impact": 27 if float(row["cpi"]) < 0.80 else 22 if float(row["cpi"]) < 0.85 else 14 if float(row["cpi"]) < 0.90 else 7 if float(row["cpi"]) < 0.95 else 0
-    }
-    return [(k, round(v, 2)) for k, v in sorted(drivers.items(), key=lambda x: x[1], reverse=True) if v > 0][:5]
+    return get_top_kpis(row)
 
 
-def risk_driver_level(score):
-    if score >= 20:
+def risk_driver_level(level_or_score):
+    """Compatibility helper. Accepts either a severity score or a Risk Level string."""
+    if isinstance(level_or_score, str):
+        return level_or_score
+    if level_or_score >= 3:
         return "Critical"
-    if score >= 8:
+    if level_or_score >= 2:
         return "Watchlist"
     return "Low"
-
 
 def override_status(prediction, risk_score, spi, cpi, delay_percent, risks, issues, sentiment):
     """Final project health rule.
@@ -722,8 +824,8 @@ def escalation_required(status, row):
 
 def summarize_dimension_watchlist(row, status):
     dims = health_breakdown(row)
-    red_dims = [name.replace(" Health", "") for name, value in dims.items() if value == "Red"]
-    amber_dims = [name.replace(" Health", "") for name, value in dims.items() if value == "Amber"]
+    red_dims = [name for name, value in dims.items() if value == "Red"]
+    amber_dims = [name for name, value in dims.items() if value == "Amber"]
 
     if red_dims:
         return f"Critical concern areas: {', '.join(red_dims)}."
@@ -759,6 +861,7 @@ def generate_recovery_plan(row, status):
     if row["cpi"] < 0.85:
         reasons.append(f"CPI is {row['cpi']}, indicating critical cost efficiency variance.")
         actions.append("Review cost burn rate, remove low-value activities, and reset cost-to-complete controls.")
+        actions.append("Recalculate EAC/VAC and confirm whether contingency or change approval is required.")
     elif row["cpi"] < 0.95:
         reasons.append(f"CPI is {row['cpi']}, showing cost performance below PMO tolerance.")
         actions.append("Tighten budget tracking and review cost-to-complete.")
@@ -833,25 +936,30 @@ def generate_recovery_plan(row, status):
     escalation = escalation_required(status, row)
     dimension_note = summarize_dimension_watchlist(row, status)
     readable_status = status_label(status)
+    forecast_note = (
+        f" EAC is {row['eac']:,.0f} against BAC {row['budget_at_completion']:,.0f}; "
+        f"VAC is {row['vac']:,.0f} ({row['vac_percent']:.1f}%). "
+        f"RAID maturity is {row['raid_maturity_score']}/100 ({row['raid_maturity_label']})."
+    )
 
     if status == "Red":
         priority = "High"
         summary = (
             f"This {row['project_type']} project is classified as {readable_status} with a risk score of {row['risk_score']}. "
-            f"{dimension_note} Immediate recovery governance, leadership visibility, and owner-driven corrective actions are required. "
+            f"{dimension_note}{forecast_note} Immediate recovery governance, leadership visibility, and owner-driven corrective actions are required. "
             f"Estimated recovery timeline is {timeline}."
         )
     elif status == "Amber":
         priority = "Medium"
         summary = (
             f"This {row['project_type']} project is classified as {readable_status} with a risk score of {row['risk_score']}. "
-            f"{dimension_note} The project appears recoverable within {timeline} if corrective actions are taken now."
+            f"{dimension_note}{forecast_note} The project appears recoverable within {timeline} if corrective actions are taken now."
         )
     else:
         priority = "Low"
         summary = (
             f"This {row['project_type']} project is classified as {readable_status} with a risk score of {row['risk_score']}. "
-            f"{dimension_note} Continue standard PMO monitoring and review watchlist items during the next status cycle."
+            f"{dimension_note}{forecast_note} Continue standard PMO monitoring and review watchlist items during the next status cycle."
         )
 
     return summary, priority, reasons, actions, timeline, escalation
@@ -897,6 +1005,7 @@ def assess_project(row):
         "project_name": row.get("project_name", "Manual Project"),
         "project_type": row.get("project_type", "General Project"),
         "project_duration_days": duration,
+        "budget_at_completion": float(row.get("budget_at_completion", 100000)),
         "completed_tasks_percent": float(row["completed_tasks_percent"]),
         "cost_variance_percent": float(row["cost_variance_percent"]),
         "schedule_variance_days": schedule_days,
@@ -910,6 +1019,12 @@ def assess_project(row):
         "stakeholder_sentiment_score": float(row["stakeholder_sentiment_score"]),
         "risk_score": risk_score
     }
+
+    result_row["eac"], result_row["vac"], result_row["vac_percent"] = calculate_evm_forecast(
+        result_row["budget_at_completion"], result_row["cpi"]
+    )
+    result_row["raid_maturity_score"] = raid_maturity_score(result_row)
+    result_row["raid_maturity_label"] = raid_maturity_label(result_row["raid_maturity_score"])
 
     final_status, severe_drivers = sanity_check_status(final_status, result_row)
     summary, priority, reasons, actions, timeline, escalation = generate_recovery_plan(result_row, final_status)
@@ -935,15 +1050,19 @@ def create_health_chart(dimensions):
     return chart_to_buffer(fig)
 
 def create_driver_chart(top_drivers):
-    names = [x[0] for x in top_drivers]
-    scores = [x[1] for x in top_drivers]
-    levels = [risk_driver_level(s) for s in scores]
-    colors_list = [risk_color_map[level] for level in levels]
+    names = [x["Driver"] for x in top_drivers]
+    scores = [x["Severity Score"] for x in top_drivers]
+    labels = [x["KPI Value"] for x in top_drivers]
+    colors_list = [risk_color_map[x["Risk Level"]] for x in top_drivers]
     fig, ax = plt.subplots(figsize=(8, 4))
-    ax.bar(names, scores, color=colors_list)
-    ax.set_title("Top Risk Drivers")
-    ax.set_ylabel("Impact Score")
+    bars = ax.bar(names, scores, color=colors_list)
+    ax.set_title("KPI Severity View")
+    ax.set_ylabel("Severity")
+    ax.set_yticks([1, 2, 3])
+    ax.set_yticklabels(["Low", "Watchlist", "Critical"])
     ax.tick_params(axis="x", rotation=25)
+    for bar, label in zip(bars, labels):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.03, label, ha="center", va="bottom", fontsize=8)
     return chart_to_buffer(fig)
 
 def create_pdf_report(project_name, final_status, confidence, risk_score, priority, timeline, escalation,
@@ -960,6 +1079,10 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
     story.append(Paragraph(f"<b>Final Health Status:</b> {final_status}", styles["Normal"]))
     story.append(Paragraph(f"<b>Confidence:</b> {confidence}%", styles["Normal"]))
     story.append(Paragraph(f"<b>Risk Score:</b> {risk_score}", styles["Normal"]))
+    story.append(Paragraph(f"<b>BAC:</b> {result_row['budget_at_completion']:,.2f}", styles["Normal"]))
+    story.append(Paragraph(f"<b>EAC:</b> {result_row['eac']:,.2f}", styles["Normal"]))
+    story.append(Paragraph(f"<b>VAC:</b> {result_row['vac']:,.2f} ({result_row['vac_percent']:.1f}%)", styles["Normal"]))
+    story.append(Paragraph(f"<b>RAID Maturity:</b> {result_row['raid_maturity_score']}/100 - {result_row['raid_maturity_label']}", styles["Normal"]))
     story.append(Paragraph(f"<b>Recovery Priority:</b> {priority}", styles["Normal"]))
     story.append(Paragraph(f"<b>Recovery Timeline:</b> {timeline}", styles["Normal"]))
     story.append(Paragraph(f"<b>Executive Escalation:</b> {escalation}", styles["Normal"]))
@@ -1016,6 +1139,16 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown("### EVM Forecast & RAID Maturity")
+    f1, f2, f3, f4 = st.columns(4)
+    f1.metric("BAC", f"{result_row['budget_at_completion']:,.0f}")
+    f2.metric("EAC", f"{result_row['eac']:,.0f}")
+    f3.metric("VAC", f"{result_row['vac']:,.0f}", f"{result_row['vac_percent']:.1f}%")
+    f4.metric("RAID Maturity", f"{result_row['raid_maturity_score']}/100", result_row['raid_maturity_label'])
+    st.caption("EAC = BAC / CPI. VAC = BAC - EAC. Negative VAC indicates a forecast budget overrun.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.markdown("### Health Breakdown by Dimension")
     health_html = '<div class="health-grid">'
     for dimension_name, health_value in dimensions.items():
@@ -1033,16 +1166,16 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     st.markdown("### Top Risk Drivers")
 
     if top_drivers:
-        driver_df = pd.DataFrame(top_drivers, columns=["Driver", "Impact Score"])
-        driver_df["Risk Level"] = driver_df["Impact Score"].apply(risk_driver_level)
+        driver_df = pd.DataFrame(top_drivers)
 
-        table_html = '<table class="driver-table"><tr><th>Driver</th><th>Impact Score</th><th>Risk Level</th></tr>'
+        table_html = '<table class="driver-table"><tr><th>Driver</th><th>KPI Value</th><th>Risk Level</th><th>PMO Signal</th></tr>'
         for _, rr in driver_df.iterrows():
             level = rr["Risk Level"]
             table_html += (
                 f'<tr><td>{rr["Driver"]}</td>'
-                f'<td>{rr["Impact Score"]}</td>'
-                f'<td><span class="driver-badge driver-{level.lower()}">{level}</span></td></tr>'
+                f'<td>{rr["KPI Value"]}</td>'
+                f'<td><span class="driver-badge driver-{level.lower()}">{level}</span></td>'
+                f'<td>{rr["PMO Signal"]}</td></tr>'
             )
         table_html += '</table>'
         st.markdown(table_html, unsafe_allow_html=True)
@@ -1050,11 +1183,11 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
         fig_driver = px.bar(
             driver_df,
             x="Driver",
-            y="Impact Score",
+            y="Severity Score",
             color="Risk Level",
-            title="Risk Driver Impact",
+            title="KPI Severity View",
             color_discrete_map=risk_color_map,
-            text="Impact Score"
+            text="KPI Value"
         )
 
         fig_driver.update_traces(
@@ -1069,7 +1202,7 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
             paper_bgcolor="#0B0B0B",
             plot_bgcolor="#0B0B0B",
             font=dict(color="#FFFFFF", size=15, family="Inter"),
-            title=dict(text="<b>Risk Driver Impact</b>", font=dict(size=28, color="#FFFFFF")),
+            title=dict(text="<b>KPI Severity View</b>", font=dict(size=28, color="#FFFFFF")),
             xaxis=dict(
                 title="<b>Driver</b>",
                 title_font=dict(size=18, color="#FFFFFF"),
@@ -1077,7 +1210,7 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
                 showgrid=False
             ),
             yaxis=dict(
-                title="<b>Impact Score</b>",
+                title="<b>Severity</b>",
                 title_font=dict(size=18, color="#FFFFFF"),
                 tickfont=dict(size=15, color="#FFFFFF", family="Inter"),
                 gridcolor="rgba(255,255,255,0.18)"
@@ -1150,6 +1283,10 @@ Project Type: {result_row['project_type']}
 Health Status: {final_status}
 Confidence: {confidence}%
 Risk Score: {result_row['risk_score']}
+BAC: {result_row['budget_at_completion']:,.0f}
+EAC: {result_row['eac']:,.0f}
+VAC: {result_row['vac']:,.0f} ({result_row['vac_percent']:.1f}%)
+RAID Maturity: {result_row['raid_maturity_score']}/100 - {result_row['raid_maturity_label']}
 Recovery Priority: {priority}
 Recovery Timeline: {timeline}
 Executive Escalation: {escalation}
@@ -1362,6 +1499,13 @@ with tab_manual:
                 value=180
             )
 
+            budget_at_completion = st.number_input(
+                "Budget at Completion / BAC",
+                min_value=0.0,
+                value=100000.0,
+                step=1000.0
+            )
+
             completed_tasks_percent = st.slider(
                 "Completed Tasks %",
                 0,
@@ -1434,6 +1578,7 @@ with tab_manual:
             "project_name": project_name,
             "project_type": project_type,
             "project_duration_days": project_duration_days,
+            "budget_at_completion": budget_at_completion,
             "completed_tasks_percent": completed_tasks_percent,
             "cost_variance_percent": cost_variance_percent,
             "schedule_variance_days": schedule_variance_days,
