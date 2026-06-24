@@ -853,12 +853,13 @@ gmail_url = (
     f"&body={encoded_text}"
 )
 
-    c1, c2 = st.columns(2)
-    with c1:
-        st.link_button("Share Summary on WhatsApp", whatsapp_url)
-    with c2:
-        st.link_button("Share Summary via Gmail", gmail_url)
-    st.markdown("</div>", unsafe_allow_html=True)
+c1, c2 = st.columns(2)
+
+with c1:
+    st.link_button("Share Summary on WhatsApp", whatsapp_url)
+
+with c2:
+    st.link_button("Share Summary via Gmail", gmail_url)
 
 # -----------------------------
 # MAIN UI
