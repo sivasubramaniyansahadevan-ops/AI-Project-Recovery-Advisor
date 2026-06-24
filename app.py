@@ -11,50 +11,55 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
-st.set_page_config(page_title="ProjectRescue AI", layout="wide")
+st.set_page_config(
+    page_title="ProjectRescue AI",
+    page_icon="🟥",
+    layout="wide"
+)
 
+# -----------------------------
+# PREMIUM UI STYLE
+# -----------------------------
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
 }
 
 .stApp {
-    background: linear-gradient(135deg, #050505 0%, #0B0B0B 45%, #111111 100%);
-    color: #F5F5F5;
+    background:
+        radial-gradient(circle at top left, rgba(229,9,20,0.18), transparent 30%),
+        radial-gradient(circle at top right, rgba(255,255,255,0.05), transparent 25%),
+        linear-gradient(135deg, #050505 0%, #0B0B0B 50%, #111111 100%);
+    color: #FFFFFF;
 }
 
 .block-container {
-    padding-top: 2rem;
-    padding-left: 4rem;
-    padding-right: 4rem;
-    max-width: 1400px;
+    padding-top: 1.5rem;
+    padding-left: 3.5rem;
+    padding-right: 3.5rem;
+    max-width: 1500px;
 }
 
-h1, h2, h3 {
-    color: #FFFFFF !important;
-    font-weight: 800 !important;
+h1, h2, h3, h4, h5, h6, p, label, span {
+    color: #F5F5F5 !important;
 }
 
-p, label, span {
-    color: #E5E5E5 !important;
-}
-
-.hero-card {
-    background: linear-gradient(135deg, #141414, #090909);
-    border: 1px solid #2A2A2A;
-    border-radius: 22px;
-    padding: 32px;
+.hero {
+    background: linear-gradient(135deg, rgba(20,20,20,0.95), rgba(8,8,8,0.95));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 28px;
+    padding: 34px 38px;
     margin-bottom: 28px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+    box-shadow: 0 28px 80px rgba(0,0,0,0.6);
 }
 
 .hero-title {
-    font-size: 42px;
-    font-weight: 800;
-    color: #FFFFFF;
+    font-size: 48px;
+    font-weight: 900;
+    letter-spacing: -1.5px;
     margin-bottom: 8px;
 }
 
@@ -64,59 +69,44 @@ p, label, span {
 
 .hero-subtitle {
     font-size: 18px;
-    color: #BDBDBD !important;
-    margin-bottom: 14px;
+    color: #CCCCCC !important;
 }
 
 .hero-brand {
-    font-size: 14px;
-    color: #8E8E8E !important;
+    font-size: 13px;
+    color: #888888 !important;
+    margin-top: 14px;
 }
 
-[data-testid="stTabs"] button {
-    background-color: #141414 !important;
-    border-radius: 12px 12px 0 0 !important;
-    color: #E5E5E5 !important;
-    font-weight: 600 !important;
-}
-
-[data-testid="stTabs"] button[aria-selected="true"] {
-    color: #FFFFFF !important;
-    border-bottom: 3px solid #E50914 !important;
-}
-
-.stNumberInput input, .stTextInput input {
-    background-color: #1C1C1C !important;
-    color: #FFFFFF !important;
-    border: 1px solid #333333 !important;
-    border-radius: 10px !important;
-}
-
-.stSelectbox div[data-baseweb="select"] {
-    background-color: #1C1C1C !important;
-    color: #FFFFFF !important;
+.panel {
+    background: rgba(18,18,18,0.88);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 22px;
+    padding: 26px;
+    margin-top: 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.45);
 }
 
 .result-card {
-    padding: 28px;
-    border-radius: 24px;
-    margin-top: 28px;
-    margin-bottom: 28px;
-    box-shadow: 0 18px 45px rgba(0,0,0,0.45);
+    padding: 32px;
+    border-radius: 28px;
+    margin: 28px 0;
+    box-shadow: 0 28px 80px rgba(0,0,0,0.55);
 }
 
 .green-card {
-    background: linear-gradient(135deg, #082E1D, #0F6B3A);
+    background: linear-gradient(135deg, #062C1B, #0E6B3A);
     border: 1px solid #2ECC71;
 }
 
 .amber-card {
-    background: linear-gradient(135deg, #3A2600, #9A6500);
+    background: linear-gradient(135deg, #2D1C00, #A96A00);
     border: 1px solid #F39C12;
 }
 
 .red-card {
-    background: linear-gradient(135deg, #320000, #8B0000);
+    background: linear-gradient(135deg, #2B0000, #990000);
     border: 1px solid #E50914;
 }
 
@@ -124,59 +114,111 @@ p, label, span {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 18px;
-    margin-top: 22px;
+    margin-top: 26px;
 }
 
 .result-metric {
-    background: rgba(0,0,0,0.28);
-    padding: 18px;
-    border-radius: 16px;
+    background: rgba(0,0,0,0.32);
     border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 18px;
+    padding: 18px;
 }
 
-.result-metric-label {
-    font-size: 13px;
-    color: #BDBDBD !important;
-    margin-bottom: 8px;
+.result-label {
+    font-size: 12px;
+    color: #BBBBBB !important;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
 }
 
-.result-metric-value {
-    font-size: 28px;
-    font-weight: 800;
+.result-value {
+    font-size: 30px;
+    font-weight: 900;
+    margin-top: 8px;
+}
+
+[data-testid="stTabs"] button {
+    background: #151515 !important;
+    border-radius: 14px 14px 0 0 !important;
+    color: #BBBBBB !important;
+    font-weight: 700 !important;
+    padding: 14px 20px !important;
+}
+
+[data-testid="stTabs"] button[aria-selected="true"] {
     color: #FFFFFF !important;
+    border-bottom: 3px solid #E50914 !important;
 }
 
 .stButton button, .stDownloadButton button {
     background: linear-gradient(135deg, #E50914, #B00610) !important;
     color: white !important;
     border: none !important;
-    border-radius: 12px !important;
-    padding: 0.65rem 1.2rem !important;
-    font-weight: 700 !important;
+    border-radius: 14px !important;
+    font-weight: 800 !important;
+    padding: 0.75rem 1.4rem !important;
+    box-shadow: 0 12px 30px rgba(229,9,20,0.25);
 }
 
 .stButton button:hover, .stDownloadButton button:hover {
-    background: linear-gradient(135deg, #FF1E2D, #E50914) !important;
+    background: linear-gradient(135deg, #FF2333, #E50914) !important;
 }
 
-.brand-footer {
-    color: #777777;
+.stNumberInput input, .stTextInput input {
+    background-color: #181818 !important;
+    color: #FFFFFF !important;
+    border: 1px solid #333333 !important;
+    border-radius: 12px !important;
+}
+
+.stSelectbox div[data-baseweb="select"] {
+    background-color: #181818 !important;
+    color: #FFFFFF !important;
+    border-radius: 12px !important;
+}
+
+[data-testid="stFileUploader"] {
+    background: #121212;
+    border: 1px dashed #444444;
+    border-radius: 18px;
+    padding: 18px;
+}
+
+.badge {
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-weight: 800;
     font-size: 13px;
+}
+
+.badge-green { background:#0E6B3A; color:#FFFFFF; }
+.badge-amber { background:#A96A00; color:#FFFFFF; }
+.badge-red { background:#990000; color:#FFFFFF; }
+
+.footer {
+    color: #777777;
     margin-top: 50px;
-    padding-top: 20px;
+    padding-top: 22px;
     border-top: 1px solid #222222;
+    font-size: 13px;
 }
 </style>
 """, unsafe_allow_html=True)
 
+# -----------------------------
+# BRAND HEADER
+# -----------------------------
 st.markdown("""
-<div class="hero-card">
+<div class="hero">
     <div class="hero-title">ProjectRescue <span>AI</span></div>
-    <div class="hero-subtitle">Project Health & Recovery Advisor</div>
+    <div class="hero-subtitle">Enterprise Project Health & Recovery Advisor</div>
     <div class="hero-brand">Powered by ThinkLab.pm · Built by Sivasubramaniyan Sahadevan</div>
 </div>
 """, unsafe_allow_html=True)
 
+# -----------------------------
+# CONFIG
+# -----------------------------
 color_map = {"Green": "#2ECC71", "Amber": "#F39C12", "Red": "#E74C3C"}
 risk_color_map = {"High": "#E74C3C", "Medium": "#F39C12", "Low": "#2ECC71"}
 health_icons = {"Green": "🟢 Green", "Amber": "🟠 Amber", "Red": "🔴 Red"}
@@ -194,16 +236,17 @@ def load_model():
 
 model = load_model()
 
-
 def dark_plot(fig):
     fig.update_layout(
         template="plotly_dark",
         paper_bgcolor="#0B0B0B",
         plot_bgcolor="#0B0B0B",
-        font_color="#F5F5F5"
+        font_color="#F5F5F5",
+        title_font_size=20,
+        title_font_color="#FFFFFF",
+        legend_title_font_color="#FFFFFF"
     )
     return fig
-
 
 def calculate_risk_score(cost, schedule_pct, delay_days, spi, cpi, completed, risks, issues, scope, utilization, sentiment):
     score = 0
@@ -214,22 +257,13 @@ def calculate_risk_score(cost, schedule_pct, delay_days, spi, cpi, completed, ri
     score += scope * 3.0
     score += max(utilization - 80, 0) * 1.1
     score += (5 - sentiment) * 8
-
-    if spi < 0.85:
-        score += 15
-    elif spi < 0.95:
-        score += 8
-
-    if cpi < 0.85:
-        score += 15
-    elif cpi < 0.95:
-        score += 8
+    score += 15 if spi < 0.85 else 8 if spi < 0.95 else 0
+    score += 15 if cpi < 0.85 else 8 if cpi < 0.95 else 0
 
     if completed > 75 and score > 40:
         score += 8
 
     return round(score, 2)
-
 
 def classify_dimension(value, green_limit, amber_limit, reverse=False):
     if reverse:
@@ -238,13 +272,11 @@ def classify_dimension(value, green_limit, amber_limit, reverse=False):
         elif value >= amber_limit:
             return "Amber"
         return "Red"
-    else:
-        if value <= green_limit:
-            return "Green"
-        elif value <= amber_limit:
-            return "Amber"
-        return "Red"
-
+    if value <= green_limit:
+        return "Green"
+    elif value <= amber_limit:
+        return "Amber"
+    return "Red"
 
 def health_breakdown(row):
     return {
@@ -258,7 +290,6 @@ def health_breakdown(row):
         "Resource Health": classify_dimension(row["resource_utilization_percent"], 85, 95),
         "Stakeholder Health": classify_dimension(row["stakeholder_sentiment_score"], 3.8, 2.8, reverse=True)
     }
-
 
 def get_top_drivers(row):
     drivers = {
@@ -274,20 +305,15 @@ def get_top_drivers(row):
     }
     return [(k, round(v, 2)) for k, v in sorted(drivers.items(), key=lambda x: x[1], reverse=True) if v > 0][:5]
 
-
 def override_status(prediction, risk_score, spi, cpi, delay_percent, risks, issues, sentiment):
     if risk_score >= 90 or spi < 0.75 or cpi < 0.75 or delay_percent >= 25:
         return "Red"
-
     if risk_score >= 45 or spi < 0.92 or cpi < 0.92 or delay_percent >= 12 or risks >= 7 or issues >= 7 or sentiment < 3:
         if prediction == "Green":
             return "Amber"
-
     if risk_score <= 25 and spi >= 0.95 and cpi >= 0.95 and sentiment >= 3.8 and risks <= 3 and issues <= 3:
         return "Green"
-
     return prediction
-
 
 def sanity_check_status(status, row):
     severe = []
@@ -306,11 +332,10 @@ def sanity_check_status(status, row):
     if row["stakeholder_sentiment_score"] < 2.5:
         severe.append("Stakeholder sentiment is low")
 
-    if status == "Red" and len(severe) == 0:
+    if status == "Red" and not severe:
         return "Amber", severe
 
     return status, severe
-
 
 def recovery_timeline(status, row):
     if status == "Green":
@@ -325,7 +350,6 @@ def recovery_timeline(status, row):
         return "8-12 weeks"
     return "6-8 weeks"
 
-
 def escalation_required(status, row):
     if status == "Red":
         return "Yes"
@@ -334,7 +358,6 @@ def escalation_required(status, row):
     if status == "Amber":
         return "Monitor"
     return "No"
-
 
 def generate_recovery_plan(row, status):
     reasons, actions = [], []
@@ -448,7 +471,6 @@ def generate_recovery_plan(row, status):
 
     return summary, priority, reasons, actions, timeline, escalation
 
-
 def assess_project(row):
     duration = max(float(row.get("project_duration_days", 180)), 1)
     schedule_days = float(row["schedule_variance_days"])
@@ -461,7 +483,7 @@ def assess_project(row):
         float(row["resource_utilization_percent"]), float(row["stakeholder_sentiment_score"])
     )
 
-    input_df = pd.DataFrame([{
+    input_df = pd.DataFrame([{**{f: None for f in features},
         "cost_variance_percent": float(row["cost_variance_percent"]),
         "schedule_variance_percent": schedule_pct,
         "schedule_variance_days": schedule_days,
@@ -508,7 +530,7 @@ def assess_project(row):
 
     return result_row, prediction, final_status, confidence, severe_drivers, summary, priority, reasons, actions, timeline, escalation
 
-
+# PDF functions
 def chart_to_buffer(fig):
     buf = BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
@@ -516,33 +538,27 @@ def chart_to_buffer(fig):
     buf.seek(0)
     return buf
 
-
 def create_health_chart(dimensions):
     labels = list(dimensions.keys())
-    values = [1] * len(labels)
     colors_list = [color_map[dimensions[label]] for label in labels]
-
     fig, ax = plt.subplots(figsize=(8, 4))
-    ax.barh(labels, values, color=colors_list)
+    ax.barh(labels, [1] * len(labels), color=colors_list)
     ax.set_xlim(0, 1)
     ax.set_xticks([])
     ax.set_title("Health Breakdown by Dimension")
     return chart_to_buffer(fig)
-
 
 def create_driver_chart(top_drivers):
     names = [x[0] for x in top_drivers]
     scores = [x[1] for x in top_drivers]
     levels = ["High" if s >= 15 else "Medium" if s >= 8 else "Low" for s in scores]
     colors_list = [risk_color_map[level] for level in levels]
-
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.bar(names, scores, color=colors_list)
     ax.set_title("Top Risk Drivers")
     ax.set_ylabel("Impact Score")
     ax.tick_params(axis="x", rotation=25)
     return chart_to_buffer(fig)
-
 
 def create_pdf_report(project_name, final_status, confidence, risk_score, priority, timeline, escalation,
                       summary, dimensions, top_drivers, reasons, actions, result_row):
@@ -589,7 +605,6 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
     buffer.seek(0)
     return buffer
 
-
 def render_result(result_row, prediction, final_status, confidence, severe_drivers, summary, priority, reasons, actions, timeline, escalation):
     dimensions = health_breakdown(result_row)
     top_drivers = get_top_drivers(result_row)
@@ -597,48 +612,49 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
 
     st.markdown(f"""
     <div class="result-card {card_class}">
-        <h2 style="margin-bottom: 8px;">Assessment Result</h2>
-        <h1 style="margin-top: 0;">{health_icons[final_status]}</h1>
+        <div style="font-size:18px;font-weight:700;opacity:.85;">Assessment Result</div>
+        <div style="font-size:42px;font-weight:900;margin-top:6px;">{health_icons[final_status]}</div>
         <div class="result-grid">
-            <div class="result-metric"><div class="result-metric-label">Confidence</div><div class="result-metric-value">{confidence}%</div></div>
-            <div class="result-metric"><div class="result-metric-label">Risk Score</div><div class="result-metric-value">{result_row["risk_score"]}</div></div>
-            <div class="result-metric"><div class="result-metric-label">Recovery Priority</div><div class="result-metric-value">{priority}</div></div>
-            <div class="result-metric"><div class="result-metric-label">Recovery Timeline</div><div class="result-metric-value">{timeline}</div></div>
-            <div class="result-metric"><div class="result-metric-label">Executive Escalation</div><div class="result-metric-value">{escalation}</div></div>
+            <div class="result-metric"><div class="result-label">Confidence</div><div class="result-value">{confidence}%</div></div>
+            <div class="result-metric"><div class="result-label">Risk Score</div><div class="result-value">{result_row["risk_score"]}</div></div>
+            <div class="result-metric"><div class="result-label">Recovery Priority</div><div class="result-value">{priority}</div></div>
+            <div class="result-metric"><div class="result-label">Timeline</div><div class="result-value">{timeline}</div></div>
+            <div class="result-metric"><div class="result-label">Escalation</div><div class="result-value">{escalation}</div></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.markdown("### Executive Summary")
     st.write(summary)
+    st.markdown("</div>", unsafe_allow_html=True)
 
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.markdown("### Health Breakdown by Dimension")
     health_df = pd.DataFrame([{"Dimension": k, "Health": health_icons[v]} for k, v in dimensions.items()])
     st.dataframe(health_df, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("### Top Risk Drivers / Feature Importance")
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown("### Top Risk Drivers")
     if top_drivers:
         driver_df = pd.DataFrame(top_drivers, columns=["Driver", "Impact Score"])
         driver_df["Risk Level"] = driver_df["Impact Score"].apply(lambda x: "High" if x >= 15 else "Medium" if x >= 8 else "Low")
-        st.dataframe(driver_df, use_container_width=True)
 
         fig_driver = px.bar(
             driver_df,
             x="Driver",
             y="Impact Score",
             color="Risk Level",
-            title="Top Risk Drivers",
+            title="Risk Driver Impact",
             color_discrete_map=risk_color_map,
             text="Impact Score"
         )
         fig_driver.update_traces(textposition="outside", marker_line_color="white", marker_line_width=1.5)
         st.plotly_chart(dark_plot(fig_driver), use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    if severe_drivers:
-        st.markdown("### Severe Drivers")
-        for driver in severe_drivers:
-            st.write(f"- {driver}")
-
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.markdown("### Key Reasons")
     for reason in reasons:
         st.write(f"- {reason}")
@@ -646,8 +662,10 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     st.markdown("### Recommended Recovery Actions")
     for action in actions:
         st.write(f"- {action}")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("### Export Assessment Report")
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown("### Export & Share")
     pdf_buffer = create_pdf_report(
         result_row["project_name"], final_status, confidence, result_row["risk_score"],
         priority, timeline, escalation, summary, dimensions, top_drivers, reasons, actions, result_row
@@ -660,43 +678,32 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
         mime="application/pdf"
     )
 
-    share_text = f"""
-ProjectRescue AI Report
-Project: {result_row['project_name']}
-Status: {final_status}
-Risk Score: {result_row['risk_score']}
-Recovery Priority: {priority}
-Timeline: {timeline}
-Generated by ProjectRescue AI | ThinkLab.pm
-"""
-    encoded_text = urllib.parse.quote(share_text)
-    whatsapp_url = f"https://wa.me/?text={encoded_text}"
-    gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&su=ProjectRescue AI Report - {result_row['project_name']}&body={encoded_text}"
+    share_text = f"ProjectRescue AI Report%0AProject: {result_row['project_name']}%0AStatus: {final_status}%0ARisk Score: {result_row['risk_score']}%0ARecovery Priority: {priority}%0ATimeline: {timeline}%0AGenerated by ThinkLab.pm"
+    whatsapp_url = f"https://wa.me/?text={share_text}"
+    gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&su=ProjectRescue AI Report - {result_row['project_name']}&body={share_text}"
 
     c1, c2 = st.columns(2)
     with c1:
         st.link_button("Share Summary on WhatsApp", whatsapp_url)
     with c2:
         st.link_button("Share Summary via Gmail", gmail_url)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("### Entered Project Metrics")
-    output_df = pd.DataFrame([{**result_row, "model_prediction": prediction, "final_status": final_status, "confidence_percent": confidence}])
-    st.dataframe(output_df, use_container_width=True)
-
-
-tab_csv, tab_manual = st.tabs([
-    "Portfolio Assessment",
-    "Single Project Assessment"
-])
+# -----------------------------
+# MAIN UI
+# -----------------------------
+tab_csv, tab_manual = st.tabs(["Portfolio Assessment", "Single Project Assessment"])
 
 with tab_csv:
-    uploaded_file = st.file_uploader("Upload Project CSV", type=["csv"], key="csv_upload")
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("Upload project portfolio CSV", type=["csv"], key="csv_upload")
+    st.caption("Assess multiple projects at once and export results.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
     if uploaded_file:
         df = pd.read_csv(uploaded_file)
-        st.success("File uploaded successfully")
-
         assessed_rows = []
+
         for _, r in df.iterrows():
             try:
                 result_row, prediction, final_status, confidence, severe, summary, priority, reasons, actions, timeline, escalation = assess_project(r)
@@ -710,65 +717,55 @@ with tab_csv:
                     "executive_escalation": escalation
                 })
             except Exception as e:
-                st.warning(f"Skipped one row due to missing or invalid data: {e}")
+                st.warning(f"Skipped one row due to invalid data: {e}")
 
         assessed_df = pd.DataFrame(assessed_rows)
 
         if not assessed_df.empty:
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Total Projects", len(assessed_df))
-            col2.metric("Average Risk Score", round(assessed_df["risk_score"].mean(), 2))
-            col3.metric("High Priority Projects", len(assessed_df[assessed_df["recovery_priority"] == "High"]))
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Total Projects", len(assessed_df))
+            c2.metric("Average Risk Score", round(assessed_df["risk_score"].mean(), 2))
+            c3.metric("High Priority Projects", len(assessed_df[assessed_df["recovery_priority"] == "High"]))
 
-            c1, c2 = st.columns(2)
-
-            with c1:
+            col1, col2 = st.columns(2)
+            with col1:
                 fig1 = px.pie(
                     assessed_df,
                     names="final_status",
-                    title="Predicted Project Health Distribution",
+                    title="Portfolio Health Distribution",
                     color="final_status",
-                    color_discrete_map=color_map
+                    color_discrete_map=color_map,
+                    hole=0.45
                 )
                 st.plotly_chart(dark_plot(fig1), use_container_width=True)
 
-            with c2:
-                fig2 = px.histogram(
+            with col2:
+                fig2 = px.scatter_3d(
                     assessed_df,
-                    x="risk_score",
+                    x="schedule_variance_days",
+                    y="cost_variance_percent",
+                    z="risk_score",
                     color="final_status",
-                    title="Risk Score Distribution",
+                    hover_name="project_name",
+                    title="3D Portfolio Risk View",
                     color_discrete_map=color_map
                 )
                 st.plotly_chart(dark_plot(fig2), use_container_width=True)
 
-            fig3 = px.scatter(
-                assessed_df,
-                x="schedule_variance_days",
-                y="cost_variance_percent",
-                color="final_status",
-                hover_data=["project_name", "project_type"],
-                title="Schedule Delay vs Cost Variance",
-                color_discrete_map=color_map
-            )
-            st.plotly_chart(dark_plot(fig3), use_container_width=True)
-
+            st.markdown('<div class="panel">', unsafe_allow_html=True)
             st.subheader("Assessed Project Results")
             st.dataframe(assessed_df, use_container_width=True)
-
-            csv_export = assessed_df.to_csv(index=False).encode("utf-8")
             st.download_button(
                 "Download Assessed CSV",
-                data=csv_export,
+                data=assessed_df.to_csv(index=False).encode("utf-8"),
                 file_name="project_rescue_assessed_results.csv",
                 mime="text/csv"
             )
-    else:
-        st.info("Upload a CSV file to assess multiple projects at once.")
-
+            st.markdown("</div>", unsafe_allow_html=True)
 
 with tab_manual:
-    st.header("Single Project Assessment")
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.subheader("Single Project Assessment")
 
     col_a, col_b = st.columns(2)
 
@@ -797,7 +794,10 @@ with tab_manual:
         resource_utilization_percent = st.slider("Resource Utilization %", 0, 100, 85)
         stakeholder_sentiment_score = st.slider("Stakeholder Sentiment", 1.0, 5.0, 3.5, step=0.1)
 
-    if st.button("Analyze Project"):
+    analyze = st.button("Analyze Project")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    if analyze:
         manual_row = {
             "project_name": project_name,
             "project_type": project_type,
@@ -818,7 +818,7 @@ with tab_manual:
         render_result(*result)
 
 st.markdown("""
-<div class="brand-footer">
-    ProjectRescue AI | ThinkLab.pm | Built by Sivasubramaniyan Sahadevan PMP®, CAPM®, CSM®, CSPO®
+<div class="footer">
+    ProjectRescue AI · ThinkLab.pm · Built by Sivasubramaniyan Sahadevan
 </div>
 """, unsafe_allow_html=True)
