@@ -779,16 +779,21 @@ def sanity_check_status(status, row):
     severe = []
     dims = health_breakdown(row)
 
-    if dims["Schedule Health"] == "Red":
+    # These names must match the non-duplicated real-life PMO dimensions
+    # returned by health_breakdown(). This fixes the KeyError caused by
+    # old labels such as "Schedule Health" and "Cost Health".
+    if dims.get("Schedule Performance") == "Red":
         severe.append("Schedule performance is critical")
-    if dims["Cost Health"] == "Red":
+    if dims.get("Cost Performance") == "Red":
         severe.append("Cost performance is critical")
-    if dims["Risk Health"] == "Red":
-        severe.append("Open risk count is high")
-    if dims["Issue Health"] == "Red":
-        severe.append("Open issue count is high")
-    if dims["Stakeholder Health"] == "Red":
-        severe.append("Stakeholder sentiment is low")
+    if dims.get("RAID Governance") == "Red":
+        severe.append("RAID governance maturity is weak")
+    if dims.get("Scope Control") == "Red":
+        severe.append("Scope control is critical")
+    if dims.get("Resource Capacity") == "Red":
+        severe.append("Resource capacity is critical")
+    if dims.get("Stakeholder Alignment") == "Red":
+        severe.append("Stakeholder alignment is low")
 
     # Never allow the final status to be lower than the worst health card.
     worst_dim = worst_health(*dims.values())
@@ -1097,7 +1102,7 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
     story.append(Spacer(1, 12))
 
     if top_drivers:
-        story.append(Paragraph("Top Risk Drivers Chart", styles["Heading2"]))
+        story.append(Paragraph("Top KPI Risk Drivers Chart", styles["Heading2"]))
         story.append(Image(create_driver_chart(top_drivers), width=470, height=240))
         story.append(Spacer(1, 12))
 
@@ -1163,7 +1168,7 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown("### Top Risk Drivers")
+    st.markdown("### Top KPI Risk Drivers")
 
     if top_drivers:
         driver_df = pd.DataFrame(top_drivers)
@@ -1271,7 +1276,10 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     reasons_text = "\n".join([f"- {r}" for r in reasons])
     actions_text = "\n".join([f"- {a}" for a in actions])
     top_drivers_text = (
-        "\n".join([f"- {driver}: {score}" for driver, score in top_drivers])
+        "\n".join([
+            f"- {item['Driver']}: {item['KPI Value']} ({item['Risk Level']}) - {item['PMO Signal']}"
+            for item in top_drivers
+        ])
         if top_drivers else "No major risk drivers detected."
     )
 
@@ -1294,7 +1302,7 @@ Executive Escalation: {escalation}
 Executive Summary:
 {summary}
 
-Top Risk Drivers:
+Top KPI Risk Drivers:
 {top_drivers_text}
 
 Key Reasons:
