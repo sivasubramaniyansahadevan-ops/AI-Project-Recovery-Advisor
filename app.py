@@ -667,8 +667,8 @@ def health_breakdown(row):
     schedule_h = worst_health(schedule_delay_h, spi_h)
     cost_h = worst_health(cost_variance_h, cpi_h)
 
-    risk_h = count_health(int(row["open_risks_count"]), 3, 8)
-    issue_h = count_health(int(row["open_issues_count"]), 3, 8)
+    risk_h = count_health(int(row["open_risks_count"]), 4, 8)
+    issue_h = count_health(int(row["open_issues_count"]), 4, 8)
     scope_h = count_health(int(row["scope_changes_count"]), 2, 5)
     raid_h = raid_maturity_health(row)
 
@@ -784,8 +784,8 @@ def get_top_kpis(row):
     add("SPI", f"{float(row['spi']):.2f}", evm_health(float(row["spi"])), "Schedule efficiency / earned value")
     add("Cost Variance", f"{float(row['cost_variance_percent']):.1f}%", variance_health(float(row["cost_variance_percent"]), 5, 15), "Budget variance")
     add("Schedule Delay", f"{float(row['schedule_delay_percent']):.1f}% / {float(row['schedule_variance_days']):.0f} days", variance_health(float(row["schedule_delay_percent"]), 5, 15), "Time variance")
-    add("Open Risks", f"{int(row['open_risks_count'])}", count_health(int(row["open_risks_count"]), 3, 8), "RAID exposure")
-    add("Open Issues", f"{int(row['open_issues_count'])}", count_health(int(row["open_issues_count"]), 3, 8), "Execution blockers")
+    add("Open Risks", f"{int(row['open_risks_count'])}", count_health(int(row["open_risks_count"]), 4, 8), "RAID exposure")
+    add("Open Issues", f"{int(row['open_issues_count'])}", count_health(int(row["open_issues_count"]), 4, 8), "Execution blockers")
     add("Scope Changes", f"{int(row['scope_changes_count'])}", count_health(int(row["scope_changes_count"]), 2, 5), "Change control")
     add("Resource Utilization", f"{float(row['resource_utilization_percent']):.0f}%", utilization_health(float(row["resource_utilization_percent"])), "Capacity / overload")
     add("Stakeholder Sentiment", f"{float(row['stakeholder_sentiment_score']):.1f}/5", sentiment_health(float(row["stakeholder_sentiment_score"])), "Stakeholder alignment")
@@ -820,8 +820,8 @@ def override_status(prediction, risk_score, spi, cpi, delay_percent, risks, issu
         variance_health(delay_percent, 5, 15),
         evm_health(spi),
         evm_health(cpi),
-        count_health(risks, 3, 8),
-        count_health(issues, 3, 8),
+        count_health(risks, 4, 8),
+        count_health(issues, 4, 8),
         sentiment_health(sentiment),
         "Red" if risk_score >= 70 else "Amber" if risk_score >= 35 else "Green"
     ]
@@ -1423,8 +1423,8 @@ def portfolio_kpi_driver_summary(assessed_df):
     cpi_health = assessed_df["cpi"].apply(evm_health)
     cost_health = assessed_df["cost_variance_percent"].apply(lambda x: variance_health(float(x), 5, 15))
     schedule_health = assessed_df["schedule_delay_percent"].apply(lambda x: variance_health(float(x), 5, 15))
-    risk_health = assessed_df["open_risks_count"].apply(lambda x: count_health(int(x), 3, 8))
-    issue_health = assessed_df["open_issues_count"].apply(lambda x: count_health(int(x), 3, 8))
+    risk_health = assessed_df["open_risks_count"].apply(lambda x: count_health(int(x), 4, 8))
+    issue_health = assessed_df["open_issues_count"].apply(lambda x: count_health(int(x), 4, 8))
     scope_health = assessed_df["scope_changes_count"].apply(lambda x: count_health(int(x), 2, 5))
     stakeholder_health = assessed_df["stakeholder_sentiment_score"].apply(lambda x: sentiment_health(float(x)))
     raid_health = assessed_df.apply(lambda r: raid_maturity_health(r), axis=1)
@@ -1669,21 +1669,35 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     schedule_cost_matrix = portfolio_health_matrix(assessed_df)
     priority_matrix = portfolio_priority_matrix(assessed_df)
 
+    # Heatmap color is based on risk severity, not count volume.
+    # This prevents healthy high-volume cells from appearing red.
+    matrix_colorscale = [
+        [0.0, "#173D25"], [0.49, "#173D25"],
+        [0.50, "#7A5200"], [0.74, "#7A5200"],
+        [0.75, "#8B0000"], [1.0, "#8B0000"]
+    ]
+
     with m1:
         st.markdown("#### Schedule vs Cost Performance Matrix")
+        status_risk = {"On Track": 0, "Watchlist": 1, "Critical": 2}
+        schedule_cost_severity = pd.DataFrame(
+            [[max(status_risk.get(row_label, 0), status_risk.get(col_label, 0)) for col_label in schedule_cost_matrix.columns] for row_label in schedule_cost_matrix.index],
+            index=schedule_cost_matrix.index,
+            columns=schedule_cost_matrix.columns
+        )
         fig_matrix = go.Figure(data=go.Heatmap(
-            z=schedule_cost_matrix.values,
+            z=schedule_cost_severity.values,
             x=list(schedule_cost_matrix.columns),
             y=list(schedule_cost_matrix.index),
-            colorscale=[
-                [0.0, "#173D25"],
-                [0.5, "#7A5200"],
-                [1.0, "#8B0000"]
-            ],
+            zmin=0,
+            zmax=2,
+            colorscale=matrix_colorscale,
+            showscale=False,
             text=schedule_cost_matrix.values,
+            customdata=schedule_cost_matrix.values,
             texttemplate="<b>%{text}</b>",
             textfont={"size": 18, "color": "#FFFFFF"},
-            hovertemplate="Schedule: %{y}<br>Cost: %{x}<br>Projects: %{z}<extra></extra>"
+            hovertemplate="Schedule: %{y}<br>Cost: %{x}<br>Projects: %{customdata}<extra></extra>"
         ))
         fig_matrix.update_layout(
             title="<b>Schedule-Cost Exposure Matrix</b>",
@@ -1699,19 +1713,26 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
 
     with m2:
         st.markdown("#### Risk Score vs RAID Governance Matrix")
+        risk_band_score = {"Low Risk": 0, "Medium Risk": 1, "High Risk": 2}
+        raid_band_score = {"Managed/Mature": 0, "Developing": 1, "Weak": 2}
+        priority_severity = pd.DataFrame(
+            [[max(risk_band_score.get(row_label, 0), raid_band_score.get(col_label, 0)) for col_label in priority_matrix.columns] for row_label in priority_matrix.index],
+            index=priority_matrix.index,
+            columns=priority_matrix.columns
+        )
         fig_priority = go.Figure(data=go.Heatmap(
-            z=priority_matrix.values,
+            z=priority_severity.values,
             x=list(priority_matrix.columns),
             y=list(priority_matrix.index),
-            colorscale=[
-                [0.0, "#173D25"],
-                [0.5, "#7A5200"],
-                [1.0, "#8B0000"]
-            ],
+            zmin=0,
+            zmax=2,
+            colorscale=matrix_colorscale,
+            showscale=False,
             text=priority_matrix.values,
+            customdata=priority_matrix.values,
             texttemplate="<b>%{text}</b>",
             textfont={"size": 18, "color": "#FFFFFF"},
-            hovertemplate="Risk Band: %{y}<br>RAID Band: %{x}<br>Projects: %{z}<extra></extra>"
+            hovertemplate="Risk Band: %{y}<br>RAID Band: %{x}<br>Projects: %{customdata}<extra></extra>"
         ))
         fig_priority.update_layout(
             title="<b>Recovery Priority Matrix</b>",
@@ -1725,7 +1746,43 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
         st.plotly_chart(fig_priority, use_container_width=True)
         st.dataframe(priority_matrix, use_container_width=True)
 
-    st.caption("Matrix views help identify projects needing schedule-cost recovery versus governance maturity intervention.")
+    st.caption("Matrix colors show severity: green = healthy/managed, amber = watchlist, red = critical. Cell numbers show project count.")
+
+    st.markdown("### Portfolio Bubble Matrix")
+    bubble_df = assessed_df.copy()
+    bubble_df["Portfolio Health"] = bubble_df["final_status"].apply(status_label)
+    bubble_df["Bubble Size"] = bubble_df.get("budget_at_completion", pd.Series([100000] * len(bubble_df))).astype(float).clip(lower=1)
+    fig_bubble = px.scatter(
+        bubble_df,
+        x="schedule_delay_percent",
+        y="cost_variance_percent",
+        size="Bubble Size",
+        color="Portfolio Health",
+        hover_name="project_name",
+        hover_data={
+            "project_type": True,
+            "spi": ":.2f",
+            "cpi": ":.2f",
+            "risk_score": ":.1f",
+            "raid_maturity_score": ":.1f",
+            "Bubble Size": False
+        },
+        title="<b>Schedule Delay vs Cost Variance Bubble Matrix</b>",
+        category_orders={"Portfolio Health": ["On Track", "Watchlist", "Critical"]},
+        color_discrete_map=color_map,
+        size_max=28
+    )
+    fig_bubble.update_layout(
+        xaxis=dict(title="<b>Schedule Delay %</b>", title_font=dict(size=16), tickfont=dict(size=13)),
+        yaxis=dict(title="<b>Cost Variance %</b>", title_font=dict(size=16), tickfont=dict(size=13)),
+        legend=dict(title=dict(text="<b>Project Health</b>", font=dict(size=17, color="#FFFFFF")), font=dict(size=15, color="#FFFFFF")),
+        height=520
+    )
+    fig_bubble.add_vline(x=5, line_dash="dash", line_color="rgba(255,255,255,0.35)")
+    fig_bubble.add_vline(x=15, line_dash="dash", line_color="rgba(255,255,255,0.35)")
+    fig_bubble.add_hline(y=5, line_dash="dash", line_color="rgba(255,255,255,0.35)")
+    fig_bubble.add_hline(y=15, line_dash="dash", line_color="rgba(255,255,255,0.35)")
+    st.plotly_chart(dark_plot(fig_bubble), use_container_width=True)
 
     st.markdown("### Portfolio Recovery Actions")
     for action in portfolio_recovery_actions(assessed_df):
