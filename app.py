@@ -308,6 +308,107 @@ h1, h2, h3, h4, h5, h6, p, label, span {
 .driver-medium { background:#9A6500; color:white; }
 .driver-low { background:#0E6B3A; color:white; }
 
+
+
+/* =============================
+   FINAL INPUT BORDER FIX
+   Removes white Streamlit/BaseWeb outlines
+   ============================= */
+
+.stTextInput input,
+.stNumberInput input{
+    background: linear-gradient(180deg, #161616 0%, #111111 100%) !important;
+    color:#F5F5F5 !important;
+    border:1px solid #2A2A2A !important;
+    border-radius:14px !important;
+    box-shadow:none !important;
+    outline:none !important;
+}
+
+.stTextInput input:hover,
+.stNumberInput input:hover{
+    border:1px solid #3A3A3A !important;
+    box-shadow:none !important;
+}
+
+.stTextInput input:focus,
+.stNumberInput input:focus,
+.stTextInput input:focus-visible,
+.stNumberInput input:focus-visible{
+    border:1px solid #E50914 !important;
+    box-shadow:0 0 12px rgba(229,9,20,.35) !important;
+    outline:none !important;
+}
+
+[data-baseweb="input"],
+[data-baseweb="input"] > div{
+    background:#141414 !important;
+    border:1px solid #2A2A2A !important;
+    border-radius:14px !important;
+    box-shadow:none !important;
+    outline:none !important;
+}
+
+[data-baseweb="input"]:focus-within,
+[data-baseweb="input"] > div:focus-within{
+    border:1px solid #E50914 !important;
+    box-shadow:0 0 12px rgba(229,9,20,.35) !important;
+    outline:none !important;
+}
+
+.stNumberInput button,
+.stNumberInput [data-testid="stNumberInputStepUp"],
+.stNumberInput [data-testid="stNumberInputStepDown"]{
+    background:#181818 !important;
+    border:1px solid #2A2A2A !important;
+    color:#E5E5E5 !important;
+    box-shadow:none !important;
+}
+
+.stNumberInput button:hover,
+.stNumberInput [data-testid="stNumberInputStepUp"]:hover,
+.stNumberInput [data-testid="stNumberInputStepDown"]:hover{
+    background:#252525 !important;
+    border:1px solid #E50914 !important;
+    color:#FFFFFF !important;
+}
+
+.stSelectbox div[data-baseweb="select"],
+.stSelectbox div[data-baseweb="select"] > div{
+    background:#141414 !important;
+    border:1px solid #2A2A2A !important;
+    border-radius:14px !important;
+    box-shadow:none !important;
+    outline:none !important;
+}
+
+.stSelectbox div[data-baseweb="select"]:hover,
+.stSelectbox div[data-baseweb="select"]:focus-within{
+    border:1px solid #E50914 !important;
+    box-shadow:0 0 12px rgba(229,9,20,.28) !important;
+}
+
+[data-testid="stFileUploader"] section{
+    background:#141414 !important;
+    border:1px solid #2A2A2A !important;
+    border-radius:14px !important;
+    box-shadow:none !important;
+}
+
+[data-testid="stFileUploader"] section:hover{
+    border:1px solid #E50914 !important;
+    box-shadow:0 0 12px rgba(229,9,20,.20) !important;
+}
+
+/* Remove browser autofill white flash */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus{
+    -webkit-text-fill-color:#F5F5F5 !important;
+    transition: background-color 9999s ease-in-out 0s !important;
+    box-shadow:0 0 0px 1000px #141414 inset !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
