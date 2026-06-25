@@ -2609,6 +2609,7 @@ if "manual_result" not in st.session_state:
 tab_csv, tab_manual, tab_siva = st.tabs([
     "Portfolio Assessment",
     "Single Project Assessment",
+    "Ask Siva",
 ])
 
 
