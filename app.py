@@ -568,6 +568,55 @@ input:-webkit-autofill:focus{
 /* CREATOR JOURNEY CLEAN FIX */
 .cj-topbar{display:block !important;text-align:center !important;margin-bottom:26px !important}.cj-headline{text-align:center !important;width:100%}.cj-headline h2{font-size:42px !important;margin:0 !important;font-weight:950 !important;letter-spacing:-1px !important;color:#fff !important}.cj-headline p{font-size:16px !important;margin:10px 0 0 0 !important;color:#C9D1D9 !important}.cj-headline-line{height:3px;width:260px;margin:16px auto 0 auto;background:linear-gradient(90deg,transparent,#FF4D4F,transparent);border-radius:999px}.cj-road-note{display:none !important}.cj-porsche,.cj-you{display:none !important}.cj-left{min-height:650px !important}.cj-route{padding:36px 20px 22px 74px !important}.cj-route-item{grid-template-columns:42px 42px minmax(0,1fr) !important;gap:13px !important;margin-bottom:27px !important}.cj-route-title{font-size:16px !important;line-height:1.2 !important;color:#F6F8FB !important}.cj-route-sub{font-size:11.5px !important;color:#AEB7C2 !important;line-height:1.25 !important}.cj-main,.cj-content{min-height:650px !important}.cj-content{padding:48px 54px 34px 54px !important}.cj-title{font-size:40px !important;max-width:720px !important}.cj-body{font-size:17px !important;max-width:760px !important}.cj-footer{margin-top:18px !important}.cj-publication{margin-top:24px;max-width:720px;background:linear-gradient(135deg,rgba(255,197,61,.13),rgba(255,77,79,.08));border:1px solid rgba(255,197,61,.34);border-radius:16px;padding:19px 21px;color:#fff !important;line-height:1.55}.cj-publication a{color:#FFD666 !important;font-weight:950;text-decoration:none !important}.cj-publication a:hover{text-decoration:underline !important}.cj-publication small{color:#FFD6D6 !important}
 
+
+
+/* CREATOR JOURNEY RESPONSIVE + CHAPTER CLEANUP FIX */
+.cj-wrap{max-width:100%; overflow:hidden !important; box-sizing:border-box !important;}
+.cj-grid{grid-template-columns:minmax(280px, 360px) minmax(0,1fr) !important; gap:22px !important;}
+.cj-left,.cj-main{min-width:0 !important; box-sizing:border-box !important;}
+.cj-content{box-sizing:border-box !important; overflow:hidden !important;}
+.cj-side-badges{position:relative !important; right:auto !important; top:auto !important; width:auto !important; max-width:720px !important; margin-top:20px !important; display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important;}
+.cj-bottom-strip{position:relative !important; left:auto !important; right:auto !important; bottom:auto !important; margin-top:22px !important; display:grid !important; grid-template-columns:repeat(4,minmax(0,1fr)) !important;}
+.cj-card-stack{max-width:620px !important;}
+.cj-route-title{word-break:normal !important; overflow-wrap:break-word !important;}
+.cj-route-sub{overflow-wrap:break-word !important;}
+@media (max-width:1350px){
+    .cj-grid{grid-template-columns:minmax(260px, 330px) minmax(0,1fr) !important; gap:18px !important;}
+    .cj-route{padding:34px 14px 20px 56px !important;}
+    .cj-route-item{grid-template-columns:36px 34px minmax(0,1fr) !important; gap:10px !important; margin-bottom:24px !important;}
+    .cj-icon{font-size:25px !important;}
+    .cj-route-title{font-size:14px !important;}
+    .cj-route-sub{font-size:10.5px !important;}
+    .cj-content{padding:42px 42px 30px 42px !important;}
+    .cj-title{font-size:34px !important; max-width:100% !important;}
+    .cj-body{font-size:15.5px !important; max-width:100% !important;}
+    .cj-bottom-strip{grid-template-columns:repeat(2,minmax(0,1fr)) !important;}
+}
+@media (max-width:1050px){
+    .cj-grid{grid-template-columns:1fr !important;}
+    .cj-left{min-height:auto !important; padding:18px !important;}
+    .cj-left:before,.cj-left:after{display:none !important;}
+    .cj-route{padding:0 !important; display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:12px !important;}
+    .cj-route-item{margin-bottom:0 !important; background:rgba(255,255,255,.04) !important; border:1px solid rgba(255,255,255,.08) !important; border-radius:14px !important; padding:12px !important;}
+    .cj-main,.cj-content{min-height:auto !important;}
+    .cj-side-badges{grid-template-columns:1fr !important;}
+    .cj-bottom-strip{grid-template-columns:1fr !important;}
+    .cj-footer{display:block !important;}
+    .cj-footer div:last-child{margin-top:8px !important;}
+}
+@media (max-width:650px){
+    .block-container{padding-left:1rem !important; padding-right:1rem !important;}
+    .cj-wrap{padding:14px !important;}
+    .cj-headline h2{font-size:30px !important;}
+    .cj-headline p{font-size:13px !important;}
+    .cj-route{grid-template-columns:1fr !important;}
+    .cj-content{padding:30px 22px 24px 22px !important;}
+    .cj-title{font-size:29px !important;}
+    .cj-body{font-size:14.5px !important;}
+    .cj-info-card{padding:14px !important; gap:12px !important;}
+    .cj-info-title{font-size:16px !important;}
+    .cj-dots{gap:12px !important;}
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -2441,7 +2490,7 @@ def render_creator_journey():
         {"icon":"🎓","nav":"Foundation","sub":"Where the journey began","kicker":"Chapter 1","title":"Building the Foundation","body":"Every project begins with learning. My journey started with Computer Science and grew into structured problem solving, technology, and delivery thinking.","cards":[("🎓","B.E. Computer Science & Engineering","Strong technical foundation"),("📖","M.S. Management of Technology","Management, technology, and innovation"),("💬","Education gave me the tools","Curiosity gave me the direction")],"badges":[("🎯","Analytical Mindset","Solving complex problems"),("👥","Delivery Thinking","Focus on outcomes")],"strip":[("💡","Problem Solver","From day one"),("📈","Tech Enthusiast","Always exploring"),("👥","Growth Mindset","Always learning"),("⭐","Purpose Driven","Impact through work")],"chips":[]},
         {"icon":"🌐","nav":"Global Perspective","sub":"Learning beyond borders","kicker":"Chapter 2","title":"Learning Beyond Borders","body":"Global exposure shaped how I view leadership, communication, stakeholder trust, and disciplined execution across teams.","cards":[("🌎","Global Exposure","Broader view of people, process, and delivery"),("🤝","Stakeholder Communication","Clarity, empathy, and alignment"),("🧭","Enterprise Mindset","Connecting decisions to outcomes")],"badges":[("🗣️","Communication","Clear and grounded"),("🧩","Adaptability","Learning through change")],"strip":[("🌎","Global View","Beyond borders"),("🤝","Collaboration","People first"),("🧭","Leadership","Direction matters"),("⚙️","Process","Structure supports scale")],"chips":[]},
         {"icon":"💼","nav":"Enterprise Delivery","sub":"Turning strategy into delivery","kicker":"Chapter 3","title":"Turning Strategy into Delivery","body":"Experience across public sector IT, higher education operations, enterprise software, and digital transformation shaped my delivery mindset: plan clearly, communicate early, and execute with ownership.","cards":[("🏛️","Public Sector IT","Enterprise software, renewals, and governance"),("🎓","Higher Education Operations","Large-scale operations and stakeholder coordination"),("🧠","Enterprise Software","Requirements, data, delivery, and quality")],"badges":[("📊","Dashboards","Executive visibility"),("🔁","Workflows","Process improvement")],"strip":[("🏛️","Government IT","7,000+ users"),("💰","$2.5M Renewal","Cross-functional approvals"),("📅","20,000+ Events","Operations scale"),("🧩","Digital Delivery","People + process + tech")],"chips":["Public Sector IT","Higher Education","Enterprise Software","Digital Transformation","Software Asset Management","Cross-functional Delivery"]},
-        {"icon":"🏅","nav":"Certifications","sub":"Continuous learning","kicker":"Chapter 4","title":"Commitment to Professional Growth","body":"Certifications strengthened the discipline behind planning, Agile delivery, risk management, governance, and recovery thinking.","cards":[("🏆","PMP®","Project leadership and governance"),("📘","CAPM®","Project management fundamentals"),("🔄","CSM® / CSPO®","Agile, Scrum, and product thinking")],"badges":[("✅","PMI Member","Professional community"),("⚡","Lean Six Sigma","Continuous improvement")],"strip":[("🏆","PMP®","Leadership"),("📘","CAPM®","Foundation"),("🔄","CSM®","Agile delivery"),("🧭","CSPO®","Product focus")],"chips":["PMP®","CAPM®","CSM®","CSPO®","Lean Six Sigma","PMI Member"]},
+        {"icon":"🏅","nav":"Certifications","sub":"Continuous learning","kicker":"Chapter 4","title":"Commitment to Professional Growth","body":"Certifications strengthened the discipline behind planning, Agile delivery, risk management, governance, and recovery thinking.","cards":[("🏆","PMP®","Project leadership and governance"),("📘","CAPM®","Project management fundamentals"),("🔄","CSM® / CSPO®","Agile, Scrum, and product thinking")],"badges":[("✅","PMI Member","Professional community"),("⚡","Lean Six Sigma","Continuous improvement")],"strip":[],"chips":[]},
         {"icon":"📖","nav":"Professional Contribution","sub":"Research to practice","kicker":"Chapter 5","title":"Contributing to the Profession","body":"My article, Project Management in the Era of Artificial Intelligence, explored how AI can support better project decision-making — the same idea that later shaped ProjectRescue AI.","cards":[("📖","Published Article","Project Management in the Era of Artificial Intelligence"),("🤖","AI for Project Management","Decision support and project intelligence"),("🔗","Research → Practice → Product","A professional idea turned into a working platform")],"badges":[("💡","PM Innovation","AI-enabled thinking"),("🎯","Decision Support","Better visibility")],"strip":[("📖","Research","Published work"),("🤖","AI","Project intelligence"),("📊","Practice","Real PMO needs"),("🚀","Product","ProjectRescue AI")],"chips":["AI in Project Management","Published Research","Decision Support","PM Innovation"],"publication":True},
         {"icon":"🚀","nav":"Why ProjectRescue AI","sub":"Purpose behind building","kicker":"Current Chapter","title":"Why ProjectRescue AI Exists","body":"Across enterprise environments, I saw project risks often noticed too late. ProjectRescue AI helps project leaders assess health, forecast impact, prioritize recovery actions, and communicate with confidence.","cards":[("🧪","Assess","Health and risk signals"),("📈","Forecast","EAC, VAC, recovery probability"),("📝","Report","Executive-ready insights")],"badges":[("🧭","PMO Decision Support","Clarity for leaders"),("🛠️","Recovery Thinking","Action over noise")],"strip":[("🧪","Assess","Health signals"),("📈","Forecast","Cost and schedule"),("🧭","Recommend","Recovery actions"),("📝","Report","Executive ready")],"chips":["Assess","Forecast","Recommend","Report","PMO Decision Support"]},
         {"icon":"🛣️","nav":"Road Ahead","sub":"The journey continues","kicker":"The Road Continues","title":"Driving Toward What Comes Next","body":"The journey continues toward richer portfolio intelligence, configurable PMO thresholds, what-if recovery planning, assessment history, and executive-ready governance workflows.","cards":[("🧪","What-if Analysis","Test recovery options before decisions"),("📚","Assessment History","Track project health over time"),("🌐","Portfolio Intelligence","Governance at scale")],"badges":[("∞","No Finish Line","Always improving"),("🚗","Still Driving","The road continues")],"strip":[("🧪","What-if","Recovery planning"),("📚","History","Trends over time"),("⚙️","Thresholds","Configurable PMO logic"),("🚀","Future","Continuous innovation")],"chips":["What-if Analysis","Assessment History","Portfolio Trends","PMO Thresholds","Future Innovations"],"road_note":True},
