@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -2484,6 +2485,53 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
 # CREATOR JOURNEY
 # -----------------------------
 def render_creator_journey():
+    # Voice greeting: attaches to the Creator Journey tab click and plays a short welcome using browser speech synthesis.
+    # It is intentionally lightweight; no external API or audio file is required.
+    components.html("""
+    <script>
+    (function(){
+        const parentWindow = window.parent;
+        const parentDocument = parentWindow.document;
+        if (parentWindow.__projectRescueCreatorVoiceBound) return;
+        parentWindow.__projectRescueCreatorVoiceBound = true;
+
+        function speakCreatorWelcome(){
+            try {
+                if (parentWindow.__projectRescueCreatorVoicePlayed) return;
+                parentWindow.__projectRescueCreatorVoicePlayed = true;
+                if (!('speechSynthesis' in parentWindow)) return;
+                const utterance = new parentWindow.SpeechSynthesisUtterance(
+                    "Hi, I am Siva. Welcome to the creator journey behind ProjectRescue AI."
+                );
+                utterance.rate = 0.95;
+                utterance.pitch = 1.0;
+                utterance.volume = 0.85;
+                parentWindow.speechSynthesis.cancel();
+                parentWindow.speechSynthesis.speak(utterance);
+            } catch (e) {
+                console.log('Creator voice greeting skipped:', e);
+            }
+        }
+
+        function bindCreatorTab(){
+            const possibleTabs = Array.from(parentDocument.querySelectorAll('button, [role="tab"]'));
+            possibleTabs.forEach(function(tab){
+                if ((tab.innerText || '').includes('Creator Journey') && !tab.dataset.creatorVoiceBound) {
+                    tab.dataset.creatorVoiceBound = 'true';
+                    tab.addEventListener('click', function(){
+                        setTimeout(speakCreatorWelcome, 250);
+                    });
+                }
+            });
+        }
+
+        bindCreatorTab();
+        setTimeout(bindCreatorTab, 500);
+        setTimeout(bindCreatorTab, 1500);
+    })();
+    </script>
+    """, height=0)
+
     # Clean premium creator journey with centered title, readable chapters, and no raw HTML leakage.
     publication_url = "https://ejtas.com/index.php/journal/article/view/94/68"
     chapters = [
@@ -2492,7 +2540,7 @@ def render_creator_journey():
         {"icon":"💼","nav":"Enterprise Delivery","sub":"Turning strategy into delivery","kicker":"Chapter 3","title":"Turning Strategy into Delivery","body":"Experience across public sector IT, higher education operations, enterprise software, and digital transformation shaped my delivery mindset: plan clearly, communicate early, and execute with ownership.","cards":[("🏛️","Public Sector IT","Enterprise software, renewals, and governance"),("🎓","Higher Education Operations","Large-scale operations and stakeholder coordination"),("🧠","Enterprise Software","Requirements, data, delivery, and quality")],"badges":[("📊","Dashboards","Executive visibility"),("🔁","Workflows","Process improvement")],"strip":[("🏛️","Government IT","7,000+ users"),("💰","$2.5M Renewal","Cross-functional approvals"),("📅","20,000+ Events","Operations scale"),("🧩","Digital Delivery","People + process + tech")],"chips":["Public Sector IT","Higher Education","Enterprise Software","Digital Transformation","Software Asset Management","Cross-functional Delivery"]},
         {"icon":"🏅","nav":"Certifications","sub":"Continuous learning","kicker":"Chapter 4","title":"Commitment to Professional Growth","body":"Certifications strengthened the discipline behind planning, Agile delivery, risk management, governance, and recovery thinking.","cards":[("🏆","PMP®","Project leadership and governance"),("📘","CAPM®","Project management fundamentals"),("🔄","CSM® / CSPO®","Agile, Scrum, and product thinking")],"badges":[("✅","PMI Member","Professional community"),("⚡","Lean Six Sigma","Continuous improvement")],"strip":[],"chips":[]},
         {"icon":"📖","nav":"Professional Contribution","sub":"Research to practice","kicker":"Chapter 5","title":"Contributing to the Profession","body":"My article, Project Management in the Era of Artificial Intelligence, explored how AI can support better project decision-making — the same idea that later shaped ProjectRescue AI.","cards":[("📖","Published Article","Project Management in the Era of Artificial Intelligence"),("🤖","AI for Project Management","Decision support and project intelligence"),("🔗","Research → Practice → Product","A professional idea turned into a working platform")],"badges":[("💡","PM Innovation","AI-enabled thinking"),("🎯","Decision Support","Better visibility")],"strip":[("📖","Research","Published work"),("🤖","AI","Project intelligence"),("📊","Practice","Real PMO needs"),("🚀","Product","ProjectRescue AI")],"chips":["AI in Project Management","Published Research","Decision Support","PM Innovation"],"publication":True},
-        {"icon":"🚀","nav":"Why ProjectRescue AI","sub":"Purpose behind building","kicker":"Current Chapter","title":"Why ProjectRescue AI Exists","body":"Across enterprise environments, I saw project risks often noticed too late. ProjectRescue AI helps project leaders assess health, forecast impact, prioritize recovery actions, and communicate with confidence.","cards":[("🧪","Assess","Health and risk signals"),("📈","Forecast","EAC, VAC, recovery probability"),("📝","Report","Executive-ready insights")],"badges":[("🧭","PMO Decision Support","Clarity for leaders"),("🛠️","Recovery Thinking","Action over noise")],"strip":[("🧪","Assess","Health signals"),("📈","Forecast","Cost and schedule"),("🧭","Recommend","Recovery actions"),("📝","Report","Executive ready")],"chips":["Assess","Forecast","Recommend","Report","PMO Decision Support"]},
+        {"icon":"🚀","nav":"Why ProjectRescue AI","sub":"Purpose behind building","kicker":"Current Chapter","title":"Why ProjectRescue AI Exists","body":"Across enterprise environments, I saw project risks often noticed too late. ProjectRescue AI helps project leaders assess health, forecast impact, prioritize recovery actions, and communicate with confidence.","cards":[("🧪","Assess","Health and risk signals"),("📈","Forecast","EAC, VAC, recovery probability"),("📝","Report","Executive-ready insights")],"badges":[],"strip":[],"chips":[]},
         {"icon":"🛣️","nav":"Road Ahead","sub":"The journey continues","kicker":"The Road Continues","title":"Driving Toward What Comes Next","body":"The journey continues toward richer portfolio intelligence, configurable PMO thresholds, what-if recovery planning, assessment history, and executive-ready governance workflows.","cards":[("🧪","What-if Analysis","Test recovery options before decisions"),("📚","Assessment History","Track project health over time"),("🌐","Portfolio Intelligence","Governance at scale")],"badges":[("∞","No Finish Line","Always improving"),("🚗","Still Driving","The road continues")],"strip":[("🧪","What-if","Recovery planning"),("📚","History","Trends over time"),("⚙️","Thresholds","Configurable PMO logic"),("🚀","Future","Continuous innovation")],"chips":["What-if Analysis","Assessment History","Portfolio Trends","PMO Thresholds","Future Innovations"],"road_note":True},
     ]
     if "creator_journey_step" not in st.session_state:
