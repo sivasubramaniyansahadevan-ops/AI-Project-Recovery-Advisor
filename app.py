@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -618,16 +617,6 @@ input:-webkit-autofill:focus{
     .cj-info-title{font-size:16px !important;}
     .cj-dots{gap:12px !important;}
 }
-
-
-/* CREATOR JOURNEY DEDUP CLEANUP */
-.cj-chip-row,.cj-side-badges,.cj-bottom-strip{display:none !important;}
-.cj-takeaway{margin-top:24px;max-width:720px;border-left:4px solid #FF4D4F;background:linear-gradient(135deg,rgba(255,77,79,.12),rgba(255,255,255,.045));border-radius:16px;padding:18px 20px;display:flex;gap:16px;align-items:flex-start;border-top:1px solid rgba(255,255,255,.08);border-right:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08);}
-.cj-takeaway-icon{font-size:28px;line-height:1;color:#FF4D4F !important;}
-.cj-takeaway-title{font-size:17px;font-weight:950;color:#FFFFFF !important;}
-.cj-takeaway-sub{font-size:14px;line-height:1.45;color:#D6DEE8 !important;margin-top:4px;}
-@media (max-width:650px){.cj-takeaway{padding:15px;gap:12px}.cj-takeaway-title{font-size:15px}.cj-takeaway-sub{font-size:13px}}
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -2494,127 +2483,183 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
 # -----------------------------
 # CREATOR JOURNEY
 # -----------------------------
-
 def render_creator_journey():
-    # Clean premium creator journey with one clear story per chapter.
-    # Duplicate chips / side cards / bottom strips were removed so each chapter reads cleanly.
+    """Creator Journey page.
+
+    This version is intentionally simple and clean:
+    - no voice greeting
+    - no duplicate chips/side badges/bottom strips
+    - no raw HTML leakage
+    - one focused chapter card at a time
+    """
     publication_url = "https://ejtas.com/index.php/journal/article/view/94/68"
+
     chapters = [
         {
-            "icon":"🎓","nav":"Foundation","sub":"Where the journey began",
-            "kicker":"Chapter 1","title":"Building the Foundation",
-            "body":"Every project begins with learning. Mine began with Computer Science and grew into structured problem solving, technology, and delivery thinking.",
-            "cards":[
-                ("🎓","B.E. Computer Science & Engineering","Technical foundation and analytical thinking"),
-                ("📖","M.S. Management of Technology","Management, technology, and innovation"),
-                ("💬","Early mindset","Curiosity shaped the direction")
+            "icon": "🎓",
+            "nav": "Foundation",
+            "sub": "Where the journey began",
+            "kicker": "CHAPTER 1",
+            "title": "Building the Foundation",
+            "body": "Every project begins with learning. My journey began with Computer Science and grew into structured problem solving, technology, and delivery thinking.",
+            "cards": [
+                ("🎓", "B.E. Computer Science & Engineering", "Technical foundation"),
+                ("📖", "M.S. Management of Technology", "Management, technology, and innovation"),
+                ("💡", "Early Mindset", "Curiosity shaped the direction"),
             ],
-            "takeaway":("💡","What it shaped","A problem-solving mindset grounded in technology and execution.")
+            "bottom": ("What it shaped", "A problem-solving mindset grounded in technology and execution."),
         },
         {
-            "icon":"🌐","nav":"Global Perspective","sub":"Learning beyond borders",
-            "kicker":"Chapter 2","title":"Learning Beyond Borders",
-            "body":"Global exposure shaped how I view leadership, communication, stakeholder trust, and disciplined execution across teams.",
-            "cards":[
-                ("🌎","Global Exposure","Broader view of people, process, and delivery"),
-                ("🤝","Stakeholder Communication","Clarity, empathy, and alignment"),
-                ("🧭","Enterprise Mindset","Connecting decisions to outcomes")
+            "icon": "🌐",
+            "nav": "Global Perspective",
+            "sub": "Learning beyond borders",
+            "kicker": "CHAPTER 2",
+            "title": "Learning Beyond Borders",
+            "body": "Global exposure shaped how I view leadership, communication, stakeholder trust, and disciplined execution across teams.",
+            "cards": [
+                ("🌎", "Global Exposure", "Broader view of people, process, and delivery"),
+                ("🤝", "Stakeholder Communication", "Clarity, empathy, and alignment"),
+                ("🧭", "Enterprise Mindset", "Connecting decisions to outcomes"),
             ],
-            "takeaway":("🧭","What it shaped","A delivery mindset that values people, clarity, and accountable execution.")
+            "bottom": ("What it shaped", "A delivery mindset that values people, clarity, and accountable execution."),
         },
         {
-            "icon":"💼","nav":"Enterprise Delivery","sub":"Turning strategy into delivery",
-            "kicker":"Chapter 3","title":"Turning Strategy into Delivery",
-            "body":"Experience across public sector IT, higher education operations, enterprise software, and digital transformation shaped my delivery mindset: plan clearly, communicate early, and execute with ownership.",
-            "cards":[
-                ("🏛️","Public Sector IT","Enterprise software, renewals, governance, and stakeholder coordination"),
-                ("🎓","Higher Education Operations","Large-scale operations, events, compliance, and service delivery"),
-                ("🧠","Enterprise Software","Requirements, data, delivery, quality, and client communication")
+            "icon": "💼",
+            "nav": "Enterprise Delivery",
+            "sub": "Turning strategy into delivery",
+            "kicker": "CHAPTER 3",
+            "title": "Turning Strategy into Delivery",
+            "body": "Experience across public sector IT, higher education operations, enterprise software, and digital transformation shaped my delivery mindset: plan clearly, communicate early, and execute with ownership.",
+            "cards": [
+                ("🏛️", "Public Sector IT", "Enterprise software, renewals, governance, and stakeholders"),
+                ("🎓", "Higher Education Operations", "Large-scale operations, events, compliance, and service delivery"),
+                ("🧠", "Enterprise Software", "Requirements, data, delivery, quality, and client communication"),
             ],
-            "takeaway":("📊","What it shaped","The ability to connect strategy, dashboards, governance, and hands-on execution.")
+            "bottom": ("Professional signal", "Strategy becomes valuable only when teams can execute it with clarity."),
         },
         {
-            "icon":"🏅","nav":"Certifications","sub":"Continuous learning",
-            "kicker":"Chapter 4","title":"Commitment to Professional Growth",
-            "body":"Certifications strengthened the discipline behind planning, Agile delivery, risk management, governance, and recovery thinking.",
-            "cards":[
-                ("🏆","PMP®","Project leadership and governance"),
-                ("📘","CAPM®","Project management fundamentals"),
-                ("🔄","CSM® / CSPO®","Agile, Scrum, and product thinking")
+            "icon": "🏅",
+            "nav": "Certifications",
+            "sub": "Continuous learning",
+            "kicker": "CHAPTER 4",
+            "title": "Commitment to Professional Growth",
+            "body": "Certifications strengthened the discipline behind planning, Agile delivery, risk management, governance, and recovery thinking.",
+            "cards": [
+                ("🏆", "PMP®", "Project leadership and governance"),
+                ("📘", "CAPM®", "Project management fundamentals"),
+                ("🔄", "CSM® / CSPO®", "Agile, Scrum, and product thinking"),
             ],
-            "takeaway":("⚡","What it shaped","A continuous-learning approach to project, product, and delivery excellence.")
+            "bottom": ("Continuous learning", "The goal is not to collect credentials, but to keep improving how projects are led and delivered."),
         },
         {
-            "icon":"📖","nav":"Professional Contribution","sub":"Research to practice",
-            "kicker":"Chapter 5","title":"Contributing to the Profession",
-            "body":"My article, Project Management in the Era of Artificial Intelligence, explored how AI can support better project decision-making — the same idea that later shaped ProjectRescue AI.",
-            "cards":[
-                ("📖","Published Article","Project Management in the Era of Artificial Intelligence"),
-                ("🤖","AI for Project Management","Decision support and project intelligence"),
-                ("🔗","Research → Practice → Product","A professional idea turned into a working platform")
+            "icon": "📖",
+            "nav": "Professional Contribution",
+            "sub": "Research to practice",
+            "kicker": "CHAPTER 5",
+            "title": "Contributing to the Profession",
+            "body": "My article, Project Management in the Era of Artificial Intelligence, explored how AI can support better project decision-making — the same idea that later shaped ProjectRescue AI.",
+            "cards": [
+                ("📖", "Published Article", "Project Management in the Era of Artificial Intelligence"),
+                ("🤖", "AI for Project Management", "Decision support and project intelligence"),
+                ("🔗", "Research → Practice → Product", "A professional idea turned into a working platform"),
             ],
             "publication": True,
-            "takeaway":("🚀","What it shaped","The bridge from research to real-world PMO decision support.")
+            "bottom": ("Research to product thinking", "A published idea became a practical product direction."),
         },
         {
-            "icon":"🚀","nav":"Why ProjectRescue AI","sub":"Purpose behind building",
-            "kicker":"Current Chapter","title":"Why ProjectRescue AI Exists",
-            "body":"Across enterprise environments, I saw project risks often noticed too late. ProjectRescue AI helps project leaders assess health, forecast impact, prioritize recovery actions, and communicate with confidence.",
-            "cards":[
-                ("🧪","Assess","Health and risk signals"),
-                ("📈","Forecast","EAC, VAC, recovery probability"),
-                ("📝","Report","Executive-ready insights")
+            "icon": "🚀",
+            "nav": "Why ProjectRescue AI",
+            "sub": "Purpose behind building",
+            "kicker": "CURRENT CHAPTER",
+            "title": "Why ProjectRescue AI Exists",
+            "body": "Across enterprise environments, I saw project risks often noticed too late. ProjectRescue AI helps project leaders assess health, forecast impact, prioritize recovery actions, and communicate with confidence.",
+            "cards": [
+                ("🧪", "Assess", "Health and risk signals"),
+                ("📈", "Forecast", "EAC, VAC, recovery probability"),
+                ("📝", "Report", "Executive-ready insights"),
             ],
-            "takeaway":("🧭","What it shaped","A product vision focused on clarity, recovery, and better executive decisions.")
+            "bottom": ("Product purpose", "ProjectRescue AI is built to turn scattered signals into clearer PMO decisions."),
         },
         {
-            "icon":"🛣️","nav":"Road Ahead","sub":"The journey continues",
-            "kicker":"The Road Continues","title":"Driving Toward What Comes Next",
-            "body":"The journey continues toward richer portfolio intelligence, configurable PMO thresholds, what-if recovery planning, assessment history, and executive-ready governance workflows.",
-            "cards":[
-                ("🧪","What-if Analysis","Test recovery options before decisions"),
-                ("📚","Assessment History","Track project health over time"),
-                ("🌐","Portfolio Intelligence","Governance at scale")
+            "icon": "🛣️",
+            "nav": "Road Ahead",
+            "sub": "The journey continues",
+            "kicker": "THE ROAD CONTINUES",
+            "title": "Driving Toward What Comes Next",
+            "body": "The journey continues toward richer portfolio intelligence, configurable PMO thresholds, what-if recovery planning, assessment history, and executive-ready governance workflows.",
+            "cards": [
+                ("🧪", "What-if Analysis", "Test recovery options before decisions"),
+                ("📚", "Assessment History", "Track project health over time"),
+                ("🌐", "Portfolio Intelligence", "Governance at scale"),
             ],
-            "takeaway":("∞","The Road Continues","Every successful project is a journey of continuous learning, adaptation, and improvement. ProjectRescue AI is one milestone on that road — not the final destination.")
+            "bottom": ("The road continues", "Every successful project is a journey of continuous learning, adaptation, and improvement. ProjectRescue AI is one milestone on that road — not the final destination."),
         },
     ]
+
     if "creator_journey_step" not in st.session_state:
         st.session_state.creator_journey_step = 0
+
     step = max(0, min(int(st.session_state.creator_journey_step), len(chapters) - 1))
     current = chapters[step]
 
+    def esc(value):
+        return escape(str(value))
+
+    def route_html():
+        output = []
+        for i, ch in enumerate(chapters):
+            active = " active" if i == step else ""
+            output.append(
+                f'<div class="cj-route-item{active}">'
+                f'<div class="cj-num">{i + 1}</div>'
+                f'<div class="cj-icon">{ch["icon"]}</div>'
+                f'<div><div class="cj-route-title">{esc(ch["nav"])}</div>'
+                f'<div class="cj-route-sub">{esc(ch["sub"])}</div></div>'
+                f'</div>'
+            )
+        return "".join(output)
+
     def cards_html(items):
-        return "".join([
-            f'<div class="cj-info-card"><div class="cj-info-icon">{icon}</div><div><div class="cj-info-title">{title}</div><div class="cj-info-sub">{sub}</div></div></div>'
-            for icon, title, sub in items
-        ])
+        output = []
+        for icon, title, sub in items:
+            output.append(
+                f'<div class="cj-info-card">'
+                f'<div class="cj-info-icon">{icon}</div>'
+                f'<div><div class="cj-info-title">{esc(title)}</div>'
+                f'<div class="cj-info-sub">{esc(sub)}</div></div>'
+                f'</div>'
+            )
+        return "".join(output)
 
-    def takeaway_html(item):
-        if not item:
-            return ""
-        icon, title, sub = item
-        return f'<div class="cj-takeaway"><div class="cj-takeaway-icon">{icon}</div><div><div class="cj-takeaway-title">{title}</div><div class="cj-takeaway-sub">{sub}</div></div></div>'
-
-    route_items = "".join([
-        f'<div class="cj-route-item{" active" if i == step else ""}"><div class="cj-num">{i+1}</div><div class="cj-icon">{ch["icon"]}</div><div><div class="cj-route-title">{ch["nav"]}</div><div class="cj-route-sub">{ch["sub"]}</div></div></div>'
-        for i, ch in enumerate(chapters)
-    ])
-
-    publication = ""
+    publication_html = ""
     if current.get("publication"):
-        publication = (
+        publication_html = (
             f'<div class="cj-publication">'
-            f'<b>Featured Publication</b><br>'
-            f'<a href="{publication_url}" target="_blank" rel="noopener noreferrer">Project Management in the Era of Artificial Intelligence</a><br>'
-            f'<small>European Journal of Theoretical and Applied Sciences, 2023</small><br>'
-            f'<span style="color:#FFD666 !important;font-weight:850;">Research → Practice → Product Thinking</span>'
+            f'<div class="cj-publication-label">Featured Publication</div>'
+            f'<a href="{publication_url}" target="_blank" rel="noopener noreferrer">'
+            f'Project Management in the Era of Artificial Intelligence</a>'
+            f'<div class="cj-publication-meta">European Journal of Theoretical and Applied Sciences, 2023</div>'
+            f'<div class="cj-publication-tag">Research → Practice → Product Thinking</div>'
             f'</div>'
         )
 
-    dots = "".join([f'<span class="cj-dot {"active" if i == step else "done" if i < step else ""}"></span>' for i in range(len(chapters))])
+    bottom_title, bottom_text = current.get("bottom", ("", ""))
+    bottom_html = ""
+    if bottom_title or bottom_text:
+        bottom_html = (
+            f'<div class="cj-takeaway">'
+            f'<div class="cj-takeaway-icon">✦</div>'
+            f'<div><div class="cj-takeaway-title">{esc(bottom_title)}</div>'
+            f'<div class="cj-takeaway-sub">{esc(bottom_text)}</div></div>'
+            f'</div>'
+        )
 
-    html = f'''
+    dots = "".join([
+        f'<span class="cj-dot {"active" if i == step else "done" if i < step else ""}"></span>'
+        for i in range(len(chapters))
+    ])
+
+    html = f"""
     <div class="cj-wrap">
         <div class="cj-topbar">
             <div class="cj-headline">
@@ -2623,34 +2668,49 @@ def render_creator_journey():
                 <div class="cj-headline-line"></div>
             </div>
         </div>
+
         <div class="cj-grid">
-            <div class="cj-left"><div class="cj-route">{route_items}</div></div>
+            <div class="cj-left">
+                <div class="cj-route">{route_html()}</div>
+            </div>
+
             <div class="cj-main">
                 <div class="cj-content">
-                    <div class="cj-kicker">{current['kicker']}</div>
-                    <div class="cj-title">{current['title']}</div>
+                    <div class="cj-kicker">{esc(current['kicker'])}</div>
+                    <div class="cj-title">{esc(current['title'])}</div>
                     <div class="cj-title-line"></div>
-                    <div class="cj-body">{current['body']}</div>
+                    <div class="cj-body">{esc(current['body'])}</div>
                     <div class="cj-card-stack">{cards_html(current.get('cards', []))}</div>
-                    {publication}
-                    {takeaway_html(current.get('takeaway'))}
+                    {publication_html}
+                    {bottom_html}
                 </div>
             </div>
         </div>
+
         <div class="cj-footer">
             <div>ProjectRescue AI © 2026 | Built with heart by Sivasubramaniyan Sahadevan</div>
-            <div><a href="https://www.linkedin.com/in/sivasubramaniyan-sahadevan" target="_blank">LinkedIn</a><a href="mailto:sivasubramaniyansahadevan@gmail.com">Email</a></div>
+            <div>
+                <a href="https://www.linkedin.com/in/sivasubramaniyan-sahadevan" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                <a href="mailto:sivasubramaniyansahadevan@gmail.com">Email</a>
+            </div>
         </div>
     </div>
-    '''
+    """
+
     st.markdown(html, unsafe_allow_html=True)
+
     nav_left, nav_mid, nav_right = st.columns([1, 3, 1])
     with nav_left:
         if st.button("← Previous", key="creator_prev", disabled=(step == 0)):
             st.session_state.creator_journey_step = max(0, step - 1)
             st.rerun()
     with nav_mid:
-        st.markdown(f'<div class="cj-dots">{dots}</div><div style="text-align:center;color:#C9D1D9;margin-top:10px;font-weight:800;">Chapter {step+1} of {len(chapters)}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="cj-dots">{dots}</div>'
+            f'<div style="text-align:center;color:#C9D1D9;margin-top:10px;font-weight:800;">'
+            f'Chapter {step + 1} of {len(chapters)}</div>',
+            unsafe_allow_html=True
+        )
     with nav_right:
         if st.button("Next →", key="creator_next", disabled=(step == len(chapters) - 1)):
             st.session_state.creator_journey_step = min(len(chapters) - 1, step + 1)
@@ -2902,28 +2962,6 @@ with tab_manual:
 
 
 with tab_creator:
-    components.html("""
-    <script>
-    (function(){
-        const key = 'projectrescue_creator_voice_greeted';
-        function speakGreeting(){
-            try {
-                if (!('speechSynthesis' in window)) return;
-                if (sessionStorage.getItem(key) === 'yes') return;
-                const msg = new SpeechSynthesisUtterance('Hi, welcome to the Creator Journey. This is the road behind ProjectRescue AI.');
-                msg.rate = 0.92;
-                msg.pitch = 1.0;
-                msg.volume = 0.9;
-                window.speechSynthesis.cancel();
-                window.speechSynthesis.speak(msg);
-                sessionStorage.setItem(key, 'yes');
-            } catch(e) {}
-        }
-        setTimeout(speakGreeting, 600);
-        document.addEventListener('click', speakGreeting, {once:true});
-    })();
-    </script>
-    """, height=0)
     render_creator_journey()
 
 
