@@ -6,6 +6,7 @@ import joblib
 from io import BytesIO
 import matplotlib.pyplot as plt
 import urllib.parse
+import textwrap
 from xml.sax.saxutils import escape
 
 from reportlab.lib.pagesizes import A4
@@ -499,7 +500,7 @@ input:-webkit-autofill:focus{
     margin:16px 0 24px 0;
     box-shadow:0 28px 90px rgba(0,0,0,.65), inset 0 0 0 1px rgba(255,255,255,.03);
 }
-.cj-topbar{display:grid; grid-template-columns:1fr 1.2fr 1fr; gap:18px; align-items:center; margin-bottom:20px;}
+.cj-topbar{display:grid; grid-template-columns:1.8fr 1fr; gap:18px; align-items:center; margin-bottom:20px;}
 .cj-brand{display:flex; align-items:center; gap:14px;}
 .cj-logo{width:56px; height:56px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:21px; font-weight:950; color:#FFF !important; background:linear-gradient(135deg, rgba(255,255,255,.09), rgba(10,10,10,.95)); border:1px solid rgba(255,77,79,.45); box-shadow:0 10px 28px rgba(0,0,0,.55);}
 .cj-brand-title{font-size:26px; font-weight:950; color:#FFF !important; letter-spacing:-.4px; line-height:1.05;}
@@ -513,18 +514,18 @@ input:-webkit-autofill:focus{
 .cj-road-note-icon{font-size:28px; color:#FF4D4F !important;}
 .cj-road-note b{color:#FFF !important; font-size:15px;}
 .cj-road-note div{color:#C9D1D9 !important; font-size:12px; line-height:1.35;}
-.cj-grid{display:grid; grid-template-columns:370px 1fr; gap:22px; align-items:stretch;}
+.cj-grid{display:grid; grid-template-columns:390px 1fr; gap:22px; align-items:stretch;}
 .cj-left{position:relative; min-height:650px; border-radius:22px; overflow:hidden; background:radial-gradient(circle at 35% 20%, rgba(255,77,79,.20), transparent 22%), linear-gradient(180deg, rgba(10,18,28,.92), rgba(3,6,10,.98)); border:1px solid rgba(255,255,255,.10); box-shadow:inset 0 0 0 1px rgba(255,255,255,.02);}
 .cj-left:before{content:''; position:absolute; left:-42px; top:-18px; width:185px; height:550px; border-radius:50%; border-left:16px solid rgba(255,77,79,.80); border-right:14px solid rgba(255,255,255,.13); transform:rotate(9deg); filter:drop-shadow(0 0 18px rgba(255,77,79,.35)); opacity:.95;}
 .cj-left:after{content:''; position:absolute; left:72px; top:60px; width:2px; height:470px; background:linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.05));}
-.cj-route{position:relative; z-index:2; padding:35px 20px 20px 90px;}
-.cj-route-item{display:grid; grid-template-columns:38px 42px 1fr; gap:12px; align-items:center; margin-bottom:27px; opacity:.72; transition:all .35s ease;}
+.cj-route{position:relative; z-index:2; padding:35px 18px 20px 88px;}
+.cj-route-item{display:grid; grid-template-columns:38px 42px minmax(0,1fr); gap:12px; align-items:center; margin-bottom:27px; opacity:.72; transition:all .35s ease; overflow:visible;}
 .cj-route-item.active{opacity:1; transform:translateX(4px);}
 .cj-num{width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:950; font-size:14px; color:#FFF !important; background:#101820; border:2px solid rgba(255,255,255,.55); box-shadow:0 8px 18px rgba(0,0,0,.5);}
 .cj-route-item.active .cj-num{background:#FF4D4F; border-color:#FF7779; box-shadow:0 0 22px rgba(255,77,79,.70);}
 .cj-icon{font-size:30px; text-align:center; filter:drop-shadow(0 6px 10px rgba(0,0,0,.45));}
-.cj-route-title{font-size:17px; font-weight:950; color:#EAF0F6 !important;}
-.cj-route-sub{font-size:12px; color:#9EA7B3 !important; margin-top:4px;}
+.cj-route-title{font-size:16px; font-weight:950; color:#EAF0F6 !important;}
+.cj-route-sub{font-size:11px; color:#9EA7B3 !important; margin-top:4px;}
 .cj-porsche{position:absolute; z-index:3; left:36px; bottom:60px; width:230px; height:92px; filter:drop-shadow(0 18px 26px rgba(255,0,0,.25));}
 .cj-porsche .body{position:absolute; left:12px; bottom:16px; width:196px; height:42px; border-radius:35px 38px 18px 18px; background:linear-gradient(180deg,#ff4f4f,#9d0000); box-shadow:inset 0 8px 14px rgba(255,255,255,.18), inset 0 -10px 14px rgba(0,0,0,.36);}
 .cj-porsche .roof{position:absolute; left:70px; bottom:45px; width:85px; height:35px; border-radius:48px 48px 10px 10px; background:linear-gradient(180deg,#d90000,#540000);}
@@ -2515,13 +2516,13 @@ def render_creator_journey():
     route_items = ""
     for i, ch in enumerate(chapters):
         active = " active" if i == step else ""
-        route_items += f"""
-        <div class="cj-route-item{active}">
-            <div class="cj-num">{i+1}</div>
-            <div class="cj-icon">{ch['icon']}</div>
-            <div><div class="cj-route-title">{ch['nav']}</div><div class="cj-route-sub">{ch['sub']}</div></div>
-        </div>
-        """
+        route_items += (
+            f'<div class="cj-route-item{active}">'
+            f'<div class="cj-num">{i+1}</div>'
+            f'<div class="cj-icon">{ch["icon"]}</div>'
+            f'<div><div class="cj-route-title">{ch["nav"]}</div><div class="cj-route-sub">{ch["sub"]}</div></div>'
+            f'</div>'
+        )
 
     info_cards = "".join([
         f"""<div class="cj-info-card"><div class="cj-info-icon">{icon}</div><div><div class="cj-info-title">{title}</div><div class="cj-info-sub">{sub}</div></div></div>"""
@@ -2539,14 +2540,12 @@ def render_creator_journey():
 
     publication_html = ""
     if current.get("publication"):
-        publication_html = f"""
-        <div class="cj-publication">
-            <b>Featured Publication</b><br>
-            <a href="{publication_url}" target="_blank" rel="noopener noreferrer">Project Management in the Era of Artificial Intelligence</a><br>
-            <small>European Journal of Theoretical and Applied Sciences, 2023</small><br>
-            <span style="color:#FFD666 !important;font-weight:850;">Research → Practice → Product Thinking</span>
-        </div>
-        """
+        publication_html = (
+            f'<div class="cj-publication"><b>Featured Publication</b><br>'
+            f'<a href="{publication_url}" target="_blank" rel="noopener noreferrer">Project Management in the Era of Artificial Intelligence</a><br>'
+            f'<small>European Journal of Theoretical and Applied Sciences, 2023</small><br>'
+            f'<span style="color:#FFD666 !important;font-weight:850;">Research → Practice → Product Thinking</span></div>'
+        )
 
     quote_html = ""
     if step == 0:
@@ -2556,13 +2555,9 @@ def render_creator_journey():
 
     dots = "".join([f'<span class="cj-dot {"active" if i == step else "done" if i < step else ""}"></span>' for i in range(len(chapters))])
 
-    st.markdown(f"""
+    st.markdown(textwrap.dedent(f"""
     <div class="cj-wrap">
         <div class="cj-topbar">
-            <div class="cj-brand">
-                <div class="cj-logo">PR</div>
-                <div><div class="cj-brand-title">ProjectRescue <span>AI</span></div><div class="cj-brand-sub">Intelligent Project & Portfolio Health Advisor</div></div>
-            </div>
             <div class="cj-headline"><h2>Creator Journey</h2><p>Every milestone shaped the way I lead, build, and deliver.</p><div class="cj-headline-line"></div></div>
             <div class="cj-road-note"><div class="cj-road-note-icon">🛣️</div><div><b>The Road Continues...</b><br>Always building. Always improving.<br>Always learning.</div></div>
         </div>
@@ -2589,7 +2584,7 @@ def render_creator_journey():
         </div>
         <div class="cj-footer"><div>ProjectRescue AI © 2026 | Built with heart by Sivasubramaniyan Sahadevan</div><div><a href="https://www.linkedin.com/" target="_blank">LinkedIn</a><a href="mailto:sahadevansivasubramaniyan@gmail.com">Email</a></div></div>
     </div>
-    """, unsafe_allow_html=True)
+    """).strip(), unsafe_allow_html=True)
 
     nav_left, nav_mid, nav_right = st.columns([1, 3, 1])
     with nav_left:
