@@ -2706,7 +2706,7 @@ def render_creator_journey():
         </div>
     </div>
     """
-    st.markdown(textwrap.dedent(html), unsafe_allow_html=True)
+    st.markdown(html.strip(), unsafe_allow_html=True)
 
     nav_left, nav_mid, nav_right = st.columns([1, 3, 1])
     with nav_left:
