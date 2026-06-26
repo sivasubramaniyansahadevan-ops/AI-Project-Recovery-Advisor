@@ -483,6 +483,144 @@ input:-webkit-autofill:focus{
     padding: 6px 0 12px 0;
 }
 
+
+/* =============================
+   CREATOR ROAD JOURNEY
+   ============================= */
+.journey-wrap {
+    background: linear-gradient(135deg, rgba(18,18,18,0.92), rgba(8,8,8,0.96));
+    border: 1px solid rgba(255,77,79,0.22);
+    border-radius: 26px;
+    padding: 28px;
+    margin: 18px 0;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.48);
+}
+.journey-road-box {
+    position: relative;
+    width: 100%;
+    height: 130px;
+    margin: 18px 0 26px 0;
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at top right, rgba(255,77,79,0.16), transparent 25%),
+        linear-gradient(135deg, rgba(255,255,255,0.05), rgba(0,0,0,0.22));
+    border: 1px solid rgba(255,255,255,0.09);
+    overflow: hidden;
+}
+.journey-road-line {
+    position: absolute;
+    left: 6%;
+    right: 6%;
+    top: 63px;
+    height: 12px;
+    border-radius: 999px;
+    background: repeating-linear-gradient(90deg, #3A3A3A 0px, #3A3A3A 34px, #666666 34px, #666666 52px);
+    box-shadow: inset 0 0 8px rgba(0,0,0,0.8), 0 8px 22px rgba(0,0,0,0.35);
+}
+.journey-road-arrow {
+    position: absolute;
+    right: 5.2%;
+    top: 49px;
+    font-size: 30px;
+    color: #FF4D4F !important;
+    text-shadow: 0 0 18px rgba(255,77,79,0.45);
+}
+.journey-car {
+    position: absolute;
+    top: 34px;
+    transform: translateX(-50%);
+    font-size: 44px;
+    filter: drop-shadow(0 10px 18px rgba(0,0,0,0.65));
+    transition: left 0.55s ease;
+}
+.journey-stop {
+    position: absolute;
+    top: 84px;
+    transform: translateX(-50%);
+    text-align: center;
+    font-size: 20px;
+}
+.journey-stop span {
+    display: block;
+    margin-top: 4px;
+    font-size: 10px;
+    color: #CFCFCF !important;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    white-space: nowrap;
+}
+.journey-card {
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.11);
+    border-left: 7px solid #FF4D4F;
+    border-radius: 22px;
+    padding: 24px 26px;
+    margin-top: 18px;
+}
+.journey-card-title {
+    font-size: 28px;
+    font-weight: 900;
+    color: #FFFFFF !important;
+    margin-bottom: 8px;
+}
+.journey-card-kicker {
+    color: #FFB3B3 !important;
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .9px;
+    margin-bottom: 8px;
+}
+.journey-card-body {
+    color: #E5E5E5 !important;
+    font-size: 16px;
+    line-height: 1.7;
+}
+.journey-chip-row {
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:16px;
+}
+.journey-chip {
+    background: rgba(255,77,79,0.12);
+    border:1px solid rgba(255,77,79,0.32);
+    color:#FFFFFF !important;
+    border-radius:999px;
+    padding:8px 12px;
+    font-weight:800;
+    font-size:13px;
+}
+.journey-note {
+    background: rgba(255,255,255,0.04);
+    border: 1px dashed rgba(255,255,255,0.18);
+    border-radius: 18px;
+    padding: 16px 18px;
+    margin-top: 18px;
+    color:#D6D6D6 !important;
+    line-height:1.6;
+}
+.skill-bar-wrap { margin: 12px 0; }
+.skill-bar-label {
+    font-size: 13px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    color: #EDEDED !important;
+}
+.skill-bar-bg {
+    width: 100%;
+    height: 11px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 999px;
+    overflow: hidden;
+}
+.skill-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #FF4D4F, #FFC53D);
+    border-radius: 999px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -2344,6 +2482,156 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     st.markdown("</div>", unsafe_allow_html=True)
 
 
+
+
+# -----------------------------
+# CREATOR JOURNEY
+# -----------------------------
+def render_creator_journey():
+    # Interactive road-style About section. The road continues; no completion/final-destination language.
+    milestones = [
+        {
+            "icon": "🎓",
+            "label": "Education",
+            "kicker": "Chapter 1 · Foundation",
+            "title": "From Technology Foundations to Project Thinking",
+            "body": "Sivasubramaniyan Sahadevan built his foundation in Computer Science and later expanded into technology management, delivery governance, and structured problem solving.",
+            "chips": ["B.E. Computer Science", "Analytical Thinking", "Systems Mindset"]
+        },
+        {
+            "icon": "🌎",
+            "label": "Global Exposure",
+            "kicker": "Chapter 2 · Broader Perspective",
+            "title": "Learning Across Global and Enterprise Environments",
+            "body": "The journey moved through international education and professional exposure, shaping a practical understanding of enterprise delivery, stakeholder communication, and operating discipline.",
+            "chips": ["M.S. Management of Technology", "Arizona State University", "Enterprise Context"]
+        },
+        {
+            "icon": "💼",
+            "label": "Delivery",
+            "kicker": "Chapter 3 · Real-World Execution",
+            "title": "Enterprise Delivery and Governance Experience",
+            "body": "Experience across government IT, higher education, software asset management, digital transformation, and project coordination helped convert theory into practical delivery judgement.",
+            "chips": ["Government IT", "Higher Education", "Software Asset Management", "Digital Transformation"]
+        },
+        {
+            "icon": "📜",
+            "label": "Credentials",
+            "kicker": "Chapter 4 · Professional Discipline",
+            "title": "Certifications and Delivery Frameworks",
+            "body": "Professional certifications strengthened the discipline behind planning, governance, Agile delivery, stakeholder engagement, risk management, and recovery planning.",
+            "chips": ["PMP®", "CAPM®", "CSM®", "CSPO®", "PMBOK®", "Agile / Hybrid"]
+        },
+        {
+            "icon": "🚦",
+            "label": "Problem",
+            "kicker": "Chapter 5 · The Challenge Observed",
+            "title": "Why Projects Need Early Rescue Signals",
+            "body": "Many projects do not fail suddenly. They drift through weak signals: low SPI, poor CPI, unresolved RAID items, unclear scope control, and delayed executive visibility.",
+            "chips": ["Schedule Risk", "Cost Overrun", "RAID Gaps", "Late Escalation"]
+        },
+        {
+            "icon": "🤖",
+            "label": "ProjectRescue AI",
+            "kicker": "Current Chapter · Building Forward",
+            "title": "ProjectRescue AI: The Road Continues",
+            "body": "ProjectRescue AI is being built as a PMO decision-support platform to assess, forecast, recommend, and report project health using practical PMI/PMBOK-aligned thinking.",
+            "chips": ["Assess", "Predict", "Recommend", "Report", "Continuous Improvement"]
+        },
+        {
+            "icon": "🚀",
+            "label": "What's Next",
+            "kicker": "Next Road · Future Innovations",
+            "title": "Driving Toward What Comes Next",
+            "body": "The journey continues toward richer portfolio intelligence, configurable PMO thresholds, what-if recovery planning, historical trends, and executive-ready governance workflows.",
+            "chips": ["What-if Analysis", "Assessment History", "Portfolio Trends", "PMO Thresholds"]
+        }
+    ]
+
+    if "creator_journey_step" not in st.session_state:
+        st.session_state.creator_journey_step = 0
+
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    section_header("Road to ProjectRescue AI", "An interactive creator journey — the road continues, not a completed finish line")
+
+    c_prev, c_mid, c_next = st.columns([1, 3, 1])
+    with c_prev:
+        if st.button("◀ Previous", key="journey_prev"):
+            st.session_state.creator_journey_step = max(0, st.session_state.creator_journey_step - 1)
+    with c_mid:
+        selected_step = st.slider(
+            "Move the car through the journey",
+            min_value=0,
+            max_value=len(milestones) - 1,
+            value=st.session_state.creator_journey_step,
+            format="Chapter %d",
+            key="journey_slider"
+        )
+        st.session_state.creator_journey_step = selected_step
+    with c_next:
+        if st.button("Next ▶", key="journey_next"):
+            st.session_state.creator_journey_step = min(len(milestones) - 1, st.session_state.creator_journey_step + 1)
+
+    step = st.session_state.creator_journey_step
+    left_pct = 7 + (step / (len(milestones) - 1)) * 84
+    stop_positions = [7 + (i / (len(milestones) - 1)) * 84 for i in range(len(milestones))]
+
+    stops_html = "".join([
+        f'<div class="journey-stop" style="left:{pos}%; opacity:{1 if i <= step else 0.45};">{m["icon"]}<span>{m["label"]}</span></div>'
+        for i, (pos, m) in enumerate(zip(stop_positions, milestones))
+    ])
+
+    st.markdown(f'''
+    <div class="journey-wrap">
+        <div class="journey-road-box">
+            <div class="journey-road-line"></div>
+            <div class="journey-road-arrow">➜</div>
+            {stops_html}
+            <div class="journey-car" style="left:{left_pct}%;">🚗</div>
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+    current = milestones[step]
+    chips_html = "".join([f'<span class="journey-chip">{chip}</span>' for chip in current["chips"]])
+    st.markdown(f'''
+    <div class="journey-card">
+        <div class="journey-card-kicker">{current["kicker"]}</div>
+        <div class="journey-card-title">{current["title"]}</div>
+        <div class="journey-card-body">{current["body"]}</div>
+        <div class="journey-chip-row">{chips_html}</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+    section_header("Skill Dashboard", "Project and program management strengths behind ProjectRescue AI")
+    skills = [
+        ("PMO Governance", 88),
+        ("EVM Forecasting", 84),
+        ("RAID / Risk Management", 90),
+        ("Stakeholder Communication", 87),
+        ("Agile & Hybrid Delivery", 82),
+        ("Executive Reporting", 89),
+    ]
+    skill_html = ""
+    for name, score in skills:
+        skill_html += f'''
+        <div class="skill-bar-wrap">
+            <div class="skill-bar-label">{name} · {score}%</div>
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:{score}%;"></div></div>
+        </div>
+        '''
+    st.markdown(skill_html, unsafe_allow_html=True)
+
+    st.markdown('''
+    <div class="journey-note">
+        <b>The Road Continues...</b><br>
+        ProjectRescue AI is not shown as a finish line. It is a current chapter in an ongoing journey of learning, building, improving, and helping teams make better project decisions.
+    </div>
+    ''', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
 # -----------------------------
 # MAIN UI
 # -----------------------------
@@ -2359,9 +2647,10 @@ if "manual_result" not in st.session_state:
     st.session_state.manual_result = None
 
 
-tab_csv, tab_manual = st.tabs([
+tab_csv, tab_manual, tab_creator = st.tabs([
     "Portfolio Assessment",
-    "Single Project Assessment"
+    "Single Project Assessment",
+    "🚗 Creator Journey"
 ])
 
 
@@ -2583,6 +2872,12 @@ with tab_manual:
 
 
 
+
+
+
+
+with tab_creator:
+    render_creator_journey()
 
 
 st.markdown("""
