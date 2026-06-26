@@ -2535,10 +2535,6 @@ def render_creator_journey():
         if st.button("← Previous", key="creator_prev", disabled=(step == 0)):
             st.session_state.creator_journey_step = max(0, step - 1)
             st.rerun()
-    with nav_mid:
-        st.markdown(f'<div class="cj-dots">{dots}</div><div style="text-align:center;color:#C9D1D9;margin-top:10px;font-weight:800;">Chapter {step+1} of {len(chapters)}</div>', unsafe_allow_html=True)
-        if current.get("publication"):
-            st.link_button("Read Published Article", publication_url)
     with nav_right:
         if st.button("Next →", key="creator_next", disabled=(step == len(chapters) - 1)):
             st.session_state.creator_journey_step = min(len(chapters) - 1, step + 1)
