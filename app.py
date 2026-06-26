@@ -487,36 +487,81 @@ input:-webkit-autofill:focus{
 /* =============================
    CREATOR JOURNEY - PREMIUM ROAD STORY
    ============================= */
-.creator-shell {background: radial-gradient(circle at 72% 18%, rgba(255,77,79,0.18), transparent 30%), linear-gradient(135deg, rgba(18,18,18,0.96), rgba(7,7,7,0.98)); border:1px solid rgba(255,77,79,0.24); border-radius:28px; padding:30px; margin:20px 0 26px 0; box-shadow:0 26px 80px rgba(0,0,0,0.62), 0 0 22px rgba(229,9,20,0.08);} 
-.creator-step-pill {text-align:center; background:linear-gradient(135deg, rgba(120,0,0,0.44), rgba(20,20,20,0.82)); border:1px solid rgba(255,77,79,0.38); border-radius:999px; padding:13px 18px; font-size:14px; font-weight:900; color:#FFFFFF !important; letter-spacing:.4px; box-shadow:inset 0 0 16px rgba(255,77,79,0.08);} 
-.creator-road-box {position:relative; width:100%; min-height:260px; border-radius:28px; background:radial-gradient(circle at top right, rgba(255,77,79,0.24), transparent 30%), radial-gradient(circle at bottom left, rgba(255,197,61,0.08), transparent 26%), linear-gradient(135deg, rgba(255,255,255,0.07), rgba(4,4,4,0.22)); border:1px solid rgba(255,255,255,0.12); overflow:hidden; margin-top:8px;} 
-.creator-road-box:before {content:''; position:absolute; left:5%; right:5%; top:102px; height:20px; border-radius:999px; background:repeating-linear-gradient(90deg, #242424 0px, #242424 40px, #8a8a8a 40px, #8a8a8a 58px), linear-gradient(90deg, #202020, #3a3a3a); box-shadow:inset 0 0 12px rgba(0,0,0,0.9), 0 14px 32px rgba(0,0,0,0.52);} 
-.creator-road-progress {position:absolute; left:5%; top:102px; height:20px; border-radius:999px; background:linear-gradient(90deg, #FF4D4F 0%, #FF7A45 52%, #FFC53D 100%); box-shadow:0 0 26px rgba(255,77,79,0.42), 0 0 8px rgba(255,197,61,0.30); animation:roadGlow 1.1s ease-in-out;} 
-.creator-road-progress:after {content:''; position:absolute; inset:0; border-radius:999px; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.28), transparent); animation:roadSweep 1.25s ease-in-out infinite;} 
-@keyframes roadGlow {from {filter:brightness(.75); transform:scaleX(.98); transform-origin:left;} to {filter:brightness(1.05); transform:scaleX(1); transform-origin:left;}} 
-@keyframes roadSweep {0% {transform:translateX(-100%); opacity:.25;} 55% {opacity:.70;} 100% {transform:translateX(100%); opacity:.05;}} 
-.creator-car {position:absolute; top:63px; transform:translateX(-50%); width:86px; height:54px; z-index:5; animation:carMoveIn .85s cubic-bezier(.22,.78,.18,1);} 
-.sports-car {position:relative; width:82px; height:42px; filter:drop-shadow(0 12px 18px rgba(0,0,0,0.72));} 
-.sports-car .body {position:absolute; left:6px; top:18px; width:70px; height:20px; background:linear-gradient(135deg, #ff3446, #b80011 65%, #5e0008); border-radius:18px 28px 12px 12px; box-shadow:inset 0 2px 2px rgba(255,255,255,0.45), 0 0 18px rgba(255,77,79,0.38);} 
-.sports-car .roof {position:absolute; left:25px; top:7px; width:28px; height:18px; background:linear-gradient(135deg, #ff6b73, #bd0012); border-radius:18px 18px 3px 3px; transform:skewX(-12deg);} 
-.sports-car .window {position:absolute; left:31px; top:10px; width:17px; height:11px; background:linear-gradient(135deg, #9ee8ff, #2c7ea6); border-radius:10px 10px 2px 2px; opacity:.95;} 
-.sports-car .nose {position:absolute; right:1px; top:23px; width:18px; height:10px; background:#ff3b4e; clip-path:polygon(0 0, 100% 45%, 0 100%); filter:brightness(1.12);} 
-.sports-car .tail-light {position:absolute; left:6px; top:24px; width:8px; height:5px; background:#ffcc55; border-radius:5px;} 
-.sports-car .wheel {position:absolute; top:32px; width:15px; height:15px; background:#111; border:3px solid #565656; border-radius:50%; box-shadow:inset 0 0 0 2px #1f1f1f;} .sports-car .wheel.front {right:12px;} .sports-car .wheel.back {left:15px;} 
-@keyframes carMoveIn {0% {transform:translateX(-64%) translateY(5px) scale(.90); opacity:.45;} 45% {transform:translateX(-50%) translateY(-7px) scale(1.04); opacity:1;} 100% {transform:translateX(-50%) translateY(0) scale(1); opacity:1;}} 
-.creator-arrow {position:absolute; right:4.2%; top:83px; font-size:38px; color:#FF4D4F !important; text-shadow:0 0 24px rgba(255,77,79,0.66); z-index:2;} 
-.creator-stop {position:absolute; top:150px; transform:translateX(-50%); text-align:center; min-width:128px; opacity:.50; transition:all .35s ease; z-index:4;} 
-.creator-stop-icon {font-size:27px; line-height:1; margin-bottom:9px; filter:drop-shadow(0 7px 10px rgba(0,0,0,.55));} 
-.creator-stop-label {display:inline-block; color:#FFFFFF !important; font-size:13px; font-weight:950; text-transform:uppercase; letter-spacing:.55px; background:rgba(0,0,0,0.78); border:1px solid rgba(255,255,255,0.25); border-radius:999px; padding:9px 13px; white-space:nowrap; text-shadow:0 1px 0 rgba(0,0,0,.5);} 
-.creator-stop.active {opacity:1; transform:translateX(-50%) translateY(-5px);} .creator-stop.active .creator-stop-label {background:linear-gradient(135deg, rgba(255,77,79,0.48), rgba(120,0,0,0.72)); border-color:rgba(255,77,79,0.85); box-shadow:0 0 26px rgba(255,77,79,0.34);} 
-.creator-card {background:radial-gradient(circle at top right, rgba(255,77,79,0.10), transparent 28%), linear-gradient(135deg, rgba(255,255,255,0.065), rgba(20,20,20,0.94)); border:1px solid rgba(255,255,255,0.12); border-left:8px solid #FF4D4F; border-radius:24px; padding:30px 32px; margin-top:26px; animation:chapterSlideIn .52s ease-in-out; box-shadow:0 20px 54px rgba(0,0,0,.45);} 
-@keyframes chapterSlideIn {from {opacity:0; transform:translateY(18px) scale(.985); filter:blur(2px);} to {opacity:1; transform:translateY(0) scale(1); filter:blur(0);}} 
-.creator-kicker {color:#FFB3B3 !important; font-size:13px; font-weight:950; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;} .creator-title {color:#FFFFFF !important; font-size:32px; line-height:1.12; font-weight:950; letter-spacing:-.6px; margin-bottom:14px;} .creator-body {color:#F1F1F1 !important; font-size:16px; line-height:1.62; max-width:1000px;} 
-.creator-chip-row {display:flex; flex-wrap:wrap; gap:10px; margin-top:18px;} .creator-chip {background:rgba(255,77,79,0.14); border:1px solid rgba(255,77,79,0.36); color:#FFFFFF !important; border-radius:999px; padding:9px 13px; font-weight:850; font-size:13px;} 
-.creator-link-card {margin-top:18px; background:linear-gradient(135deg, rgba(255,197,61,0.11), rgba(255,77,79,0.07)); border:1px solid rgba(255,197,61,0.32); border-radius:16px; padding:16px 18px; color:#FFFFFF !important; line-height:1.55;} .creator-link-card a {color:#FFD666 !important; font-weight:900; text-decoration:none !important;} .creator-link-card a:hover {text-decoration:underline !important;} 
-.creator-note {background:rgba(255,255,255,0.045); border:1px dashed rgba(255,255,255,0.20); border-radius:18px; padding:17px 19px; margin-top:22px; color:#DADADA !important; line-height:1.65;} 
-.creator-mini-map {display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-top:18px;} .creator-mini-card {background:rgba(255,255,255,0.052); border:1px solid rgba(255,255,255,0.12); border-radius:16px; padding:15px 17px; color:#FFFFFF !important; font-weight:850;} 
-@media (max-width:900px) {.creator-road-box {min-height:360px;} .creator-stop {min-width:94px;} .creator-stop-label {font-size:10px; padding:7px 9px;} .creator-mini-map {grid-template-columns:1fr;} .creator-title {font-size:26px;}}
+/* =============================
+   PREMIUM CREATOR JOURNEY UI
+   ============================= */
+.cj-wrap{
+    background: radial-gradient(circle at 72% 18%, rgba(255,77,79,0.14), transparent 32%),
+                linear-gradient(135deg, rgba(8,12,18,0.96), rgba(5,7,11,0.98));
+    border:1px solid rgba(255,255,255,0.10);
+    border-radius:22px;
+    padding:18px 22px 20px 22px;
+    margin:16px 0 24px 0;
+    box-shadow:0 28px 90px rgba(0,0,0,.65), inset 0 0 0 1px rgba(255,255,255,.03);
+}
+.cj-topbar{display:grid; grid-template-columns:1fr 1.2fr 1fr; gap:18px; align-items:center; margin-bottom:20px;}
+.cj-brand{display:flex; align-items:center; gap:14px;}
+.cj-logo{width:56px; height:56px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:21px; font-weight:950; color:#FFF !important; background:linear-gradient(135deg, rgba(255,255,255,.09), rgba(10,10,10,.95)); border:1px solid rgba(255,77,79,.45); box-shadow:0 10px 28px rgba(0,0,0,.55);}
+.cj-brand-title{font-size:26px; font-weight:950; color:#FFF !important; letter-spacing:-.4px; line-height:1.05;}
+.cj-brand-title span{color:#FF4D4F !important;}
+.cj-brand-sub{font-size:12px; color:#C9D1D9 !important; margin-top:5px;}
+.cj-headline{text-align:center;}
+.cj-headline h2{font-size:38px; margin:0; color:#FFF !important; font-weight:950; letter-spacing:-.8px;}
+.cj-headline p{margin:6px 0 0 0; color:#C9D1D9 !important; font-size:15px;}
+.cj-headline-line{height:3px; width:220px; margin:13px auto 0; background:linear-gradient(90deg, transparent, #FF4D4F, transparent); border-radius:999px;}
+.cj-road-note{justify-self:end; display:flex; gap:14px; align-items:center; max-width:310px; padding:14px 18px; border-radius:16px; background:linear-gradient(135deg, rgba(255,77,79,.19), rgba(255,255,255,.05)); border:1px solid rgba(255,255,255,.08);}
+.cj-road-note-icon{font-size:28px; color:#FF4D4F !important;}
+.cj-road-note b{color:#FFF !important; font-size:15px;}
+.cj-road-note div{color:#C9D1D9 !important; font-size:12px; line-height:1.35;}
+.cj-grid{display:grid; grid-template-columns:370px 1fr; gap:22px; align-items:stretch;}
+.cj-left{position:relative; min-height:650px; border-radius:22px; overflow:hidden; background:radial-gradient(circle at 35% 20%, rgba(255,77,79,.20), transparent 22%), linear-gradient(180deg, rgba(10,18,28,.92), rgba(3,6,10,.98)); border:1px solid rgba(255,255,255,.10); box-shadow:inset 0 0 0 1px rgba(255,255,255,.02);}
+.cj-left:before{content:''; position:absolute; left:-42px; top:-18px; width:185px; height:550px; border-radius:50%; border-left:16px solid rgba(255,77,79,.80); border-right:14px solid rgba(255,255,255,.13); transform:rotate(9deg); filter:drop-shadow(0 0 18px rgba(255,77,79,.35)); opacity:.95;}
+.cj-left:after{content:''; position:absolute; left:72px; top:60px; width:2px; height:470px; background:linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.05));}
+.cj-route{position:relative; z-index:2; padding:35px 20px 20px 90px;}
+.cj-route-item{display:grid; grid-template-columns:38px 42px 1fr; gap:12px; align-items:center; margin-bottom:27px; opacity:.72; transition:all .35s ease;}
+.cj-route-item.active{opacity:1; transform:translateX(4px);}
+.cj-num{width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:950; font-size:14px; color:#FFF !important; background:#101820; border:2px solid rgba(255,255,255,.55); box-shadow:0 8px 18px rgba(0,0,0,.5);}
+.cj-route-item.active .cj-num{background:#FF4D4F; border-color:#FF7779; box-shadow:0 0 22px rgba(255,77,79,.70);}
+.cj-icon{font-size:30px; text-align:center; filter:drop-shadow(0 6px 10px rgba(0,0,0,.45));}
+.cj-route-title{font-size:17px; font-weight:950; color:#EAF0F6 !important;}
+.cj-route-sub{font-size:12px; color:#9EA7B3 !important; margin-top:4px;}
+.cj-porsche{position:absolute; z-index:3; left:36px; bottom:60px; width:230px; height:92px; filter:drop-shadow(0 18px 26px rgba(255,0,0,.25));}
+.cj-porsche .body{position:absolute; left:12px; bottom:16px; width:196px; height:42px; border-radius:35px 38px 18px 18px; background:linear-gradient(180deg,#ff4f4f,#9d0000); box-shadow:inset 0 8px 14px rgba(255,255,255,.18), inset 0 -10px 14px rgba(0,0,0,.36);}
+.cj-porsche .roof{position:absolute; left:70px; bottom:45px; width:85px; height:35px; border-radius:48px 48px 10px 10px; background:linear-gradient(180deg,#d90000,#540000);}
+.cj-porsche .window{position:absolute; left:86px; bottom:53px; width:52px; height:18px; border-radius:20px 20px 5px 5px; background:linear-gradient(135deg,#0e1520,#5e6a78);}
+.cj-porsche .tail{position:absolute; left:24px; bottom:27px; width:34px; height:7px; border-radius:999px; background:#ffb0b0; box-shadow:0 0 18px #ff4d4f;}
+.cj-porsche .wheel{position:absolute; bottom:4px; width:42px; height:42px; border-radius:50%; background:#050505; border:7px solid #202020; box-shadow:inset 0 0 0 4px #555;}
+.cj-porsche .w1{left:42px}.cj-porsche .w2{right:34px}
+.cj-you{position:absolute; left:118px; bottom:22px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:9px 15px; color:#FFF !important; font-weight:850; font-size:13px;}
+.cj-you span{display:inline-block; width:9px; height:9px; border-radius:50%; background:#FF4D4F; margin-right:9px; box-shadow:0 0 12px #FF4D4F;}
+.cj-main{border-radius:22px; overflow:hidden; border:1px solid rgba(255,255,255,.12); min-height:650px; position:relative; background:#0A0D12; box-shadow:0 22px 70px rgba(0,0,0,.55);}
+.cj-main:before{content:''; position:absolute; inset:0; background:radial-gradient(circle at 88% 18%, rgba(255,197,61,.35), transparent 22%), radial-gradient(circle at 40% 45%, rgba(72,105,145,.18), transparent 25%), linear-gradient(115deg, rgba(8,14,23,.98) 0%, rgba(9,16,27,.78) 34%, rgba(64,39,24,.45) 60%, rgba(255,120,50,.28) 100%);}
+.cj-main:after{content:''; position:absolute; inset:0; background:linear-gradient(115deg, transparent 0%, transparent 47%, rgba(255,255,255,.08) 48%, transparent 50%), linear-gradient(150deg, transparent 0%, transparent 51%, rgba(0,0,0,.38) 52%, rgba(0,0,0,.08) 66%, transparent 68%); opacity:.75;}
+.cj-content{position:relative; z-index:2; padding:44px 48px 28px 48px; min-height:650px; animation:cjFade .42s ease-in-out;}
+@keyframes cjFade{from{opacity:.35; transform:translateY(10px)}to{opacity:1; transform:translateY(0)}}
+.cj-kicker{font-size:13px; font-weight:950; text-transform:uppercase; color:#FF6B6D !important; letter-spacing:2px; margin-bottom:16px;}
+.cj-title{font-size:38px; line-height:1.08; font-weight:950; color:#FFFFFF !important; letter-spacing:-.9px; max-width:600px;}
+.cj-title-line{width:56px; height:3px; border-radius:999px; background:#FF4D4F; margin:20px 0; box-shadow:0 0 18px rgba(255,77,79,.65);}
+.cj-body{font-size:16px; line-height:1.65; color:#EAF0F6 !important; max-width:560px;}
+.cj-card-stack{display:grid; grid-template-columns:1fr; gap:12px; margin-top:28px; max-width:410px;}
+.cj-info-card{background:rgba(12,18,27,.74); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:17px 18px; display:flex; gap:16px; align-items:flex-start; backdrop-filter:blur(8px);}
+.cj-info-icon{font-size:31px; color:#FF4D4F !important; width:42px; text-align:center;}
+.cj-info-title{font-size:18px; font-weight:950; color:#FFF !important; line-height:1.15;}
+.cj-info-sub{font-size:13px; color:#C9D1D9 !important; margin-top:4px; line-height:1.4;}
+.cj-side-badges{position:absolute; right:40px; top:265px; display:grid; gap:14px; width:250px;}
+.cj-side-badge{display:flex; gap:14px; align-items:center; background:rgba(45,22,16,.74); border:1px solid rgba(255,255,255,.10); border-radius:14px; padding:15px 16px; backdrop-filter:blur(8px);}
+.cj-side-icon{font-size:28px; color:#FF4D4F !important;}
+.cj-side-title{font-weight:950; color:#FFF !important; font-size:15px;}.cj-side-sub{font-size:12px; color:#C9D1D9 !important; margin-top:3px;}
+.cj-bottom-strip{position:absolute; z-index:3; left:42px; right:42px; bottom:28px; border-radius:14px; background:rgba(18,24,32,.78); border:1px solid rgba(255,255,255,.12); display:grid; grid-template-columns:repeat(4,1fr); overflow:hidden; backdrop-filter:blur(9px);}
+.cj-strip-item{padding:18px; display:flex; gap:13px; align-items:center; border-right:1px solid rgba(255,255,255,.10);}.cj-strip-item:last-child{border-right:none;}.cj-strip-icon{font-size:25px;}.cj-strip-title{font-weight:950; color:#FFF !important;}.cj-strip-sub{font-size:12px; color:#C9D1D9 !important; margin-top:3px;}
+.cj-chip-row{display:flex; flex-wrap:wrap; gap:10px; margin-top:22px; max-width:650px}.cj-chip{background:rgba(255,77,79,.16); border:1px solid rgba(255,77,79,.38); border-radius:999px; padding:10px 14px; color:#FFF !important; font-weight:900; font-size:13px;}
+.cj-mini-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:24px; max-width:620px}.cj-mini-card{background:rgba(12,18,27,.72); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:17px; color:#FFF !important; font-weight:950;}.cj-mini-card span{display:block; color:#C9D1D9 !important; font-size:12px; font-weight:600; margin-top:6px; line-height:1.4;}
+.cj-quote{margin-top:18px; max-width:410px; border-left:3px solid #FF4D4F; background:rgba(255,255,255,.055); border-radius:12px; padding:15px 18px; color:#EAF0F6 !important; font-size:15px; line-height:1.5;}
+.cj-publication{margin-top:24px; max-width:690px; background:linear-gradient(135deg, rgba(255,197,61,.13), rgba(255,77,79,.08)); border:1px solid rgba(255,197,61,.34); border-radius:16px; padding:19px 21px; color:#FFF !important; line-height:1.55;}.cj-publication a{color:#FFD666 !important; font-weight:950; text-decoration:none !important}.cj-publication a:hover{text-decoration:underline !important}.cj-publication small{color:#FFD6D6 !important;}
+.cj-navbox{margin:18px auto 0; max-width:760px; background:rgba(12,18,27,.78); border:1px solid rgba(255,255,255,.10); border-radius:18px; padding:14px 18px; display:grid; grid-template-columns:140px 1fr 140px; gap:16px; align-items:center;}
+.cj-dots{display:flex; justify-content:center; gap:22px; align-items:center;}.cj-dot{width:12px; height:12px; border-radius:50%; background:#3A444F; box-shadow:0 0 0 5px rgba(255,255,255,.02);}.cj-dot.active{background:#FF4D4F; box-shadow:0 0 20px rgba(255,77,79,.7);}.cj-dot.done{background:#6D7580;}
+.cj-footer{margin-top:14px; border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:14px 18px; display:flex; justify-content:space-between; color:#9EA7B3 !important; font-size:13px;}.cj-footer a{color:#C9D1D9 !important; text-decoration:none !important; margin-left:22px;}
+@media (max-width:1150px){.cj-topbar{grid-template-columns:1fr}.cj-road-note{justify-self:stretch}.cj-grid{grid-template-columns:1fr}.cj-left{display:none}.cj-main,.cj-content{min-height:720px}.cj-side-badges{position:relative; right:auto; top:auto; width:auto; margin-top:20px; grid-template-columns:1fr 1fr}.cj-bottom-strip{position:relative; left:auto; right:auto; bottom:auto; margin-top:24px; grid-template-columns:1fr 1fr}.cj-navbox{grid-template-columns:1fr}.cj-footer{display:block}.cj-footer div:last-child{margin-top:8px}.cj-mini-grid{grid-template-columns:1fr}.cj-headline h2{font-size:30px;}}
 
 </style>
 """, unsafe_allow_html=True)
@@ -2385,64 +2430,180 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
 # CREATOR JOURNEY
 # -----------------------------
 def render_creator_journey():
-    """Interactive, concise creator journey for HR/recruiter-facing storytelling."""
+    """Premium creator journey: concise, professional, interactive, and open-ended."""
     publication_url = "https://ejtas.com/index.php/journal/article/view/94/68"
 
-    milestones = [
-        {"icon": "🎓", "label": "Foundation", "kicker": "Chapter 1 · Foundation", "title": "Building the Foundation", "body": "Every project begins with learning. Mine started with Computer Science and grew into technology management, structured problem solving, and delivery thinking.", "chips": ["B.E. Computer Science", "M.S. Management of Technology", "Analytical Foundation"], "extra": ""},
-        {"icon": "🌎", "label": "Perspective", "kicker": "Chapter 2 · Global Perspective", "title": "Learning Beyond Borders", "body": "Studying and working across global environments shaped how I view leadership, stakeholder communication, and enterprise delivery discipline.", "chips": ["Global Exposure", "Stakeholder Communication", "Enterprise Mindset"], "extra": ""},
-        {"icon": "💼", "label": "Delivery", "kicker": "Chapter 3 · Delivery Mindset", "title": "Turning Strategy into Delivery", "body": "Experience across public sector IT, higher education operations, enterprise software, and digital transformation strengthened my ability to convert plans into measurable outcomes.", "chips": ["Public Sector IT", "Higher Education", "Enterprise Software", "Digital Transformation", "Software Asset Management", "Cross-functional Delivery"], "extra": ""},
-        {"icon": "📜", "label": "Credentials", "kicker": "Chapter 4 · Continuous Learning", "title": "Commitment to Professional Growth", "body": "Certifications strengthened the discipline behind planning, Agile delivery, risk management, governance, and recovery thinking.", "chips": ["PMP®", "CAPM®", "CSM®", "CSPO®", "Lean Six Sigma", "PMI Member"], "extra": ""},
-        {"icon": "📖", "label": "Research", "kicker": "Chapter 5 · Professional Contribution", "title": "Contributing to the Profession", "body": "My article on Project Management in the Era of Artificial Intelligence explored how AI can support better project decision-making — the same idea that later shaped ProjectRescue AI.", "chips": ["AI in Project Management", "Published Research", "Decision Support", "PM Innovation"], "extra": "publication"},
-        {"icon": "🤖", "label": "ProjectRescue AI", "kicker": "Current Chapter · Product Vision", "title": "Why ProjectRescue AI Exists", "body": "Across enterprise environments, I saw project risks often surface too late. ProjectRescue AI helps project leaders assess health, forecast impact, prioritize recovery, and communicate with confidence.", "chips": ["Assess", "Forecast", "Recommend", "Report", "PMO Decision Support"], "extra": "flow"},
-        {"icon": "🚀", "label": "Road Ahead", "kicker": "The Road Continues · What Comes Next", "title": "Driving Toward What Comes Next", "body": "The road continues toward richer portfolio intelligence, configurable PMO thresholds, what-if recovery planning, assessment history, and executive-ready governance workflows.", "chips": ["What-if Analysis", "Assessment History", "Portfolio Trends", "PMO Thresholds", "Future Innovations"], "extra": "road"}
+    chapters = [
+        {
+            "icon": "🎓", "nav": "Foundation", "sub": "Where the journey began",
+            "kicker": "Chapter 1", "title": "Building the Foundation",
+            "body": "Every project begins with learning. My journey started with Computer Science and grew into a passion for structured problem solving, technology, and delivery thinking.",
+            "cards": [
+                ("🎓", "B.E. Computer Science & Engineering", "Strong technical foundation"),
+                ("📖", "M.S. Management of Technology", "Advanced knowledge in management and technology"),
+                ("💬", "Education gave me the tools.", "Curiosity gave me the direction.")
+            ],
+            "badges": [("🎯", "Analytical Mindset", "Solving complex problems"), ("👥", "Delivery Thinking", "Focus on outcomes")],
+            "strip": [("💡", "Problem Solver", "From day one"), ("📈", "Tech Enthusiast", "Always exploring"), ("👥", "Growth Mindset", "Always learning"), ("⭐", "Purpose Driven", "Impact through work")],
+            "chips": []
+        },
+        {
+            "icon": "🌐", "nav": "Global Perspective", "sub": "Learning beyond borders",
+            "kicker": "Chapter 2", "title": "Learning Beyond Borders",
+            "body": "Global exposure shaped the way I view leadership, communication, stakeholder trust, and the discipline required to deliver across teams.",
+            "cards": [("🌎", "Global Exposure", "Broader view of people, process, and delivery"), ("🤝", "Stakeholder Communication", "Clarity, empathy, and alignment"), ("🧭", "Enterprise Mindset", "Connecting decisions to outcomes")],
+            "badges": [("🗣️", "Communication", "Clear and grounded"), ("🧩", "Adaptability", "Learning through change")],
+            "strip": [("🌎", "Global View", "Beyond borders"), ("🤝", "Collaboration", "People first"), ("🧭", "Leadership", "Direction matters"), ("⚙️", "Process", "Structure supports scale")],
+            "chips": []
+        },
+        {
+            "icon": "💼", "nav": "Enterprise Delivery", "sub": "Turning strategy into delivery",
+            "kicker": "Chapter 3", "title": "Turning Strategy into Delivery",
+            "body": "Experience across public sector IT, higher education operations, enterprise software, and digital transformation shaped my delivery mindset — plan clearly, communicate early, and execute with ownership.",
+            "cards": [("🏛️", "Public Sector IT", "Enterprise software, renewals, governance"), ("🎓", "Higher Education Operations", "Large-scale operations and stakeholder coordination"), ("🧠", "Enterprise Software", "Requirements, data, delivery, and quality")],
+            "badges": [("📊", "Dashboards", "Executive visibility"), ("🔁", "Workflows", "Process improvement")],
+            "strip": [("🏛️", "Government IT", "7,000+ users"), ("💰", "$2.5M Renewal", "Cross-functional approvals"), ("📅", "20,000+ Events", "Operations scale"), ("🧩", "Digital Delivery", "People + process + tech")],
+            "chips": ["Public Sector IT", "Higher Education", "Enterprise Software", "Digital Transformation", "Software Asset Management", "Cross-functional Delivery"]
+        },
+        {
+            "icon": "🏅", "nav": "Certifications", "sub": "Commitment to continuous learning",
+            "kicker": "Chapter 4", "title": "Commitment to Professional Growth",
+            "body": "Certifications strengthened the discipline behind planning, Agile delivery, risk management, governance, and recovery thinking.",
+            "cards": [("🏆", "PMP®", "Project leadership and governance"), ("📘", "CAPM®", "Project management fundamentals"), ("🔄", "CSM® / CSPO®", "Agile, Scrum, and product thinking")],
+            "badges": [("✅", "PMI Member", "Professional community"), ("⚡", "Lean Six Sigma", "Continuous improvement")],
+            "strip": [("🏆", "PMP®", "Leadership"), ("📘", "CAPM®", "Foundation"), ("🔄", "CSM®", "Agile delivery"), ("🧭", "CSPO®", "Product focus")],
+            "chips": ["PMP®", "CAPM®", "CSM®", "CSPO®", "Lean Six Sigma", "PMI Member"]
+        },
+        {
+            "icon": "📖", "nav": "Professional Contribution", "sub": "Sharing knowledge, driving impact",
+            "kicker": "Chapter 5", "title": "Contributing to the Profession",
+            "body": "My article, Project Management in the Era of Artificial Intelligence, explored how AI can support better project decision-making — the same idea that later shaped ProjectRescue AI.",
+            "cards": [("📖", "Published Article", "Project Management in the Era of Artificial Intelligence"), ("🤖", "AI for Project Management", "Decision support and project intelligence"), ("🔗", "Research → Practice → Product", "A professional idea turned into a working platform")],
+            "badges": [("💡", "PM Innovation", "AI-enabled thinking"), ("🎯", "Decision Support", "Better visibility")],
+            "strip": [("📖", "Research", "Published work"), ("🤖", "AI", "Project intelligence"), ("📊", "Practice", "Real PMO needs"), ("🚀", "Product", "ProjectRescue AI")],
+            "chips": ["AI in Project Management", "Published Research", "Decision Support", "PM Innovation"],
+            "publication": True
+        },
+        {
+            "icon": "🚀", "nav": "Why ProjectRescue AI", "sub": "The purpose behind building",
+            "kicker": "Current Chapter", "title": "Why ProjectRescue AI Exists",
+            "body": "Across enterprise environments, I saw project risks often noticed too late. ProjectRescue AI helps project leaders assess health, forecast impact, prioritize recovery actions, and communicate with confidence.",
+            "cards": [("🧪", "Assess", "Health and risk signals"), ("📈", "Forecast", "EAC, VAC, recovery probability"), ("📝", "Report", "Executive-ready insights")],
+            "badges": [("🧭", "PMO Decision Support", "Clarity for leaders"), ("🛠️", "Recovery Thinking", "Action over noise")],
+            "strip": [("🧪", "Assess", "Health signals"), ("📈", "Forecast", "Cost and schedule"), ("🧭", "Recommend", "Recovery actions"), ("📝", "Report", "Executive ready")],
+            "chips": ["Assess", "Forecast", "Recommend", "Report", "PMO Decision Support"]
+        },
+        {
+            "icon": "🛣️", "nav": "Road Ahead", "sub": "The journey continues",
+            "kicker": "The Road Continues", "title": "Driving Toward What Comes Next",
+            "body": "The journey continues toward richer portfolio intelligence, configurable PMO thresholds, what-if recovery planning, assessment history, and executive-ready governance workflows.",
+            "cards": [("🧪", "What-if Analysis", "Test recovery options before decisions"), ("📚", "Assessment History", "Track project health over time"), ("🌐", "Portfolio Intelligence", "Governance at scale")],
+            "badges": [("∞", "No Finish Line", "Always improving"), ("🚗", "Still Driving", "The road continues")],
+            "strip": [("🧪", "What-if", "Recovery planning"), ("📚", "History", "Trends over time"), ("⚙️", "Thresholds", "Configurable PMO logic"), ("🚀", "Future", "Continuous innovation")],
+            "chips": ["What-if Analysis", "Assessment History", "Portfolio Trends", "PMO Thresholds", "Future Innovations"],
+            "road_note": True
+        }
     ]
 
     if "creator_journey_step" not in st.session_state:
         st.session_state.creator_journey_step = 0
 
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    section_header("Road to ProjectRescue AI", "A heart-led professional journey — the road continues, not a completed finish line")
     step = int(st.session_state.creator_journey_step)
+    step = max(0, min(step, len(chapters) - 1))
+    current = chapters[step]
 
-    nav_left, nav_mid, nav_right = st.columns([1, 4, 1])
+    route_items = ""
+    for i, ch in enumerate(chapters):
+        active = " active" if i == step else ""
+        route_items += f"""
+        <div class="cj-route-item{active}">
+            <div class="cj-num">{i+1}</div>
+            <div class="cj-icon">{ch['icon']}</div>
+            <div><div class="cj-route-title">{ch['nav']}</div><div class="cj-route-sub">{ch['sub']}</div></div>
+        </div>
+        """
+
+    info_cards = "".join([
+        f"""<div class="cj-info-card"><div class="cj-info-icon">{icon}</div><div><div class="cj-info-title">{title}</div><div class="cj-info-sub">{sub}</div></div></div>"""
+        for icon, title, sub in current.get("cards", [])
+    ])
+    side_badges = "".join([
+        f"""<div class="cj-side-badge"><div class="cj-side-icon">{icon}</div><div><div class="cj-side-title">{title}</div><div class="cj-side-sub">{sub}</div></div></div>"""
+        for icon, title, sub in current.get("badges", [])
+    ])
+    strip_items = "".join([
+        f"""<div class="cj-strip-item"><div class="cj-strip-icon">{icon}</div><div><div class="cj-strip-title">{title}</div><div class="cj-strip-sub">{sub}</div></div></div>"""
+        for icon, title, sub in current.get("strip", [])
+    ])
+    chips_html = "".join([f'<span class="cj-chip">{chip}</span>' for chip in current.get("chips", [])])
+
+    publication_html = ""
+    if current.get("publication"):
+        publication_html = f"""
+        <div class="cj-publication">
+            <b>Featured Publication</b><br>
+            <a href="{publication_url}" target="_blank" rel="noopener noreferrer">Project Management in the Era of Artificial Intelligence</a><br>
+            <small>European Journal of Theoretical and Applied Sciences, 2023</small><br>
+            <span style="color:#FFD666 !important;font-weight:850;">Research → Practice → Product Thinking</span>
+        </div>
+        """
+
+    quote_html = ""
+    if step == 0:
+        quote_html = '<div class="cj-quote">Education gave me the tools.<br>Curiosity gave me the direction.</div>'
+    elif current.get("road_note"):
+        quote_html = '<div class="cj-quote"><b>The Road Continues...</b><br>Every successful project is a journey of continuous learning, adaptation, and improvement. ProjectRescue AI is one milestone on that road — not the final destination.</div>'
+
+    dots = "".join([f'<span class="cj-dot {"active" if i == step else "done" if i < step else ""}"></span>' for i in range(len(chapters))])
+
+    st.markdown(f"""
+    <div class="cj-wrap">
+        <div class="cj-topbar">
+            <div class="cj-brand">
+                <div class="cj-logo">PR</div>
+                <div><div class="cj-brand-title">ProjectRescue <span>AI</span></div><div class="cj-brand-sub">Intelligent Project & Portfolio Health Advisor</div></div>
+            </div>
+            <div class="cj-headline"><h2>Creator Journey</h2><p>Every milestone shaped the way I lead, build, and deliver.</p><div class="cj-headline-line"></div></div>
+            <div class="cj-road-note"><div class="cj-road-note-icon">🛣️</div><div><b>The Road Continues...</b><br>Always building. Always improving.<br>Always learning.</div></div>
+        </div>
+        <div class="cj-grid">
+            <div class="cj-left">
+                <div class="cj-route">{route_items}</div>
+                <div class="cj-porsche"><div class="roof"></div><div class="window"></div><div class="body"></div><div class="tail"></div><div class="wheel w1"></div><div class="wheel w2"></div></div>
+                <div class="cj-you"><span></span>You are here</div>
+            </div>
+            <div class="cj-main">
+                <div class="cj-content">
+                    <div class="cj-kicker">{current['kicker']}</div>
+                    <div class="cj-title">{current['title']}</div>
+                    <div class="cj-title-line"></div>
+                    <div class="cj-body">{current['body']}</div>
+                    <div class="cj-card-stack">{info_cards}</div>
+                    {quote_html}
+                    <div class="cj-chip-row">{chips_html}</div>
+                    {publication_html}
+                    <div class="cj-side-badges">{side_badges}</div>
+                    <div class="cj-bottom-strip">{strip_items}</div>
+                </div>
+            </div>
+        </div>
+        <div class="cj-footer"><div>ProjectRescue AI © 2026 | Built with heart by Sivasubramaniyan Sahadevan</div><div><a href="https://www.linkedin.com/" target="_blank">LinkedIn</a><a href="mailto:sahadevansivasubramaniyan@gmail.com">Email</a></div></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    nav_left, nav_mid, nav_right = st.columns([1, 3, 1])
     with nav_left:
-        if st.button("◀ Previous", key="creator_prev", disabled=(step == 0)):
+        if st.button("← Previous", key="creator_prev", disabled=(step == 0)):
             st.session_state.creator_journey_step = max(0, step - 1)
             st.rerun()
     with nav_mid:
-        st.markdown(f'<div class="creator-step-pill">Driving through Chapter {step + 1} of {len(milestones)} · {milestones[step]["label"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="cj-dots">{dots}</div><div style="text-align:center;color:#C9D1D9;margin-top:10px;font-weight:800;">Chapter {step+1} of {len(chapters)}</div>', unsafe_allow_html=True)
+        if current.get("publication"):
+            st.link_button("Read Published Article", publication_url)
     with nav_right:
-        if st.button("Next ▶", key="creator_next", disabled=(step == len(milestones) - 1)):
-            st.session_state.creator_journey_step = min(len(milestones) - 1, step + 1)
+        if st.button("Next →", key="creator_next", disabled=(step == len(chapters) - 1)):
+            st.session_state.creator_journey_step = min(len(chapters) - 1, step + 1)
             st.rerun()
-
-    left_pct = 5 + (step / (len(milestones) - 1)) * 88
-    progress_width = max(1, left_pct - 5)
-    stop_positions = [5 + (i / (len(milestones) - 1)) * 88 for i in range(len(milestones))]
-    stops_html = ""
-    for i, (pos, m) in enumerate(zip(stop_positions, milestones)):
-        active_cls = " active" if i == step else ""
-        opacity = "1" if i <= step else ".42"
-        stops_html += f'<div class="creator-stop{active_cls}" style="left:{pos}%; opacity:{opacity};"><div class="creator-stop-icon">{m["icon"]}</div><div class="creator-stop-label">{m["label"]}</div></div>'
-
-    road_html = f'''<div class="creator-shell"><div class="creator-road-box"><div class="creator-road-progress" style="width:{progress_width}%;"></div><div class="creator-arrow">➜</div>{stops_html}<div class="creator-car" style="left:{left_pct}%;"><div class="sports-car"><div class="roof"></div><div class="window"></div><div class="body"></div><div class="nose"></div><div class="tail-light"></div><div class="wheel back"></div><div class="wheel front"></div></div></div></div></div>'''
-    st.markdown(road_html, unsafe_allow_html=True)
-
-    current = milestones[step]
-    chips_html = "".join([f'<span class="creator-chip">{chip}</span>' for chip in current["chips"]])
-    if current.get("extra") == "publication":
-        extra_html = f'<div class="creator-link-card"><b>Featured Publication</b><br><a href="{publication_url}" target="_blank" rel="noopener noreferrer">Project Management in the Era of Artificial Intelligence</a><br><span style="color:#FFD6D6 !important;">European Journal of Theoretical and Applied Sciences, 2023</span><br><span style="color:#FFD666 !important;">Research → Practice → Product Thinking</span></div>'
-    elif current.get("extra") == "flow":
-        extra_html = '<div class="creator-mini-map"><div class="creator-mini-card">Assess<br><span style="color:#CFCFCF !important; font-weight:600;">Health & risk signals</span></div><div class="creator-mini-card">Recommend<br><span style="color:#CFCFCF !important; font-weight:600;">Recovery actions</span></div><div class="creator-mini-card">Report<br><span style="color:#CFCFCF !important; font-weight:600;">Executive-ready insights</span></div></div>'
-    elif current.get("extra") == "road":
-        extra_html = '<div class="creator-note"><b>The Road Continues...</b><br>Every successful project is a journey of continuous learning, adaptation, and improvement. ProjectRescue AI is one milestone on that road — not the final destination.</div>'
-    else:
-        extra_html = ""
-
-    card_html = f'''<div class="creator-card"><div class="creator-kicker">{current["kicker"]}</div><div class="creator-title">{current["title"]}</div><div class="creator-body">{current["body"]}</div><div class="creator-chip-row">{chips_html}</div>{extra_html}</div>'''
-    st.markdown(card_html, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # -----------------------------
