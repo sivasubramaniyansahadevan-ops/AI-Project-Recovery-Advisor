@@ -617,6 +617,15 @@ input:-webkit-autofill:focus{
     .cj-info-title{font-size:16px !important;}
     .cj-dots{gap:12px !important;}
 }
+
+.cj-takeaway{margin-top:22px;max-width:720px;border-left:4px solid #FF4D4F;background:rgba(255,255,255,.055);border-radius:14px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start;color:#EAF0F6 !important;}
+.cj-takeaway-icon{font-size:24px;color:#FF4D4F !important;line-height:1;}
+.cj-takeaway-title{font-size:16px;font-weight:950;color:#FFFFFF !important;margin-bottom:4px;}
+.cj-takeaway-sub{font-size:13px;color:#C9D1D9 !important;line-height:1.45;}
+.cj-publication-label{font-weight:950;color:#FFFFFF !important;margin-bottom:5px;}
+.cj-publication-meta{color:#FFD6D6 !important;font-size:13px;margin-top:4px;}
+.cj-publication-tag{color:#FFD666 !important;font-weight:850;margin-top:6px;}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -2484,13 +2493,14 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
 # CREATOR JOURNEY
 # -----------------------------
 def render_creator_journey():
-    """Creator Journey page.
+    """Clean premium creator journey.
 
-    This version is intentionally simple and clean:
+    Fixes:
+    - no raw HTML leakage (uses textwrap.dedent + unsafe_allow_html)
     - no voice greeting
-    - no duplicate chips/side badges/bottom strips
-    - no raw HTML leakage
+    - no repeated chips/strips/badges in Chapter 6 or Chapter 7
     - one focused chapter card at a time
+    - correct LinkedIn and email links
     """
     publication_url = "https://ejtas.com/index.php/journal/article/view/94/68"
 
@@ -2503,11 +2513,11 @@ def render_creator_journey():
             "title": "Building the Foundation",
             "body": "Every project begins with learning. My journey began with Computer Science and grew into structured problem solving, technology, and delivery thinking.",
             "cards": [
-                ("🎓", "B.E. Computer Science & Engineering", "Technical foundation"),
+                ("🎓", "B.E. Computer Science & Engineering", "Strong technical foundation"),
                 ("📖", "M.S. Management of Technology", "Management, technology, and innovation"),
                 ("💡", "Early Mindset", "Curiosity shaped the direction"),
             ],
-            "bottom": ("What it shaped", "A problem-solving mindset grounded in technology and execution."),
+            "takeaway": ("What it shaped", "A problem-solving mindset grounded in technology and execution."),
         },
         {
             "icon": "🌐",
@@ -2521,7 +2531,7 @@ def render_creator_journey():
                 ("🤝", "Stakeholder Communication", "Clarity, empathy, and alignment"),
                 ("🧭", "Enterprise Mindset", "Connecting decisions to outcomes"),
             ],
-            "bottom": ("What it shaped", "A delivery mindset that values people, clarity, and accountable execution."),
+            "takeaway": ("What it shaped", "A delivery mindset that values people, clarity, and accountable execution."),
         },
         {
             "icon": "💼",
@@ -2532,10 +2542,10 @@ def render_creator_journey():
             "body": "Experience across public sector IT, higher education operations, enterprise software, and digital transformation shaped my delivery mindset: plan clearly, communicate early, and execute with ownership.",
             "cards": [
                 ("🏛️", "Public Sector IT", "Enterprise software, renewals, governance, and stakeholders"),
-                ("🎓", "Higher Education Operations", "Large-scale operations, events, compliance, and service delivery"),
+                ("🎓", "Higher Education Operations", "Large-scale operations, compliance, and service delivery"),
                 ("🧠", "Enterprise Software", "Requirements, data, delivery, quality, and client communication"),
             ],
-            "bottom": ("Professional signal", "Strategy becomes valuable only when teams can execute it with clarity."),
+            "takeaway": ("Professional signal", "Strategy becomes valuable only when teams can execute it with clarity."),
         },
         {
             "icon": "🏅",
@@ -2549,7 +2559,7 @@ def render_creator_journey():
                 ("📘", "CAPM®", "Project management fundamentals"),
                 ("🔄", "CSM® / CSPO®", "Agile, Scrum, and product thinking"),
             ],
-            "bottom": ("Continuous learning", "The goal is not to collect credentials, but to keep improving how projects are led and delivered."),
+            "takeaway": ("Continuous learning", "The goal is not to collect credentials, but to keep improving how projects are led and delivered."),
         },
         {
             "icon": "📖",
@@ -2564,7 +2574,7 @@ def render_creator_journey():
                 ("🔗", "Research → Practice → Product", "A professional idea turned into a working platform"),
             ],
             "publication": True,
-            "bottom": ("Research to product thinking", "A published idea became a practical product direction."),
+            "takeaway": ("Research to product thinking", "A published idea became a practical product direction."),
         },
         {
             "icon": "🚀",
@@ -2578,7 +2588,7 @@ def render_creator_journey():
                 ("📈", "Forecast", "EAC, VAC, recovery probability"),
                 ("📝", "Report", "Executive-ready insights"),
             ],
-            "bottom": ("Product purpose", "ProjectRescue AI is built to turn scattered signals into clearer PMO decisions."),
+            "takeaway": ("Product purpose", "Turning scattered project signals into clearer PMO decisions."),
         },
         {
             "icon": "🛣️",
@@ -2592,7 +2602,7 @@ def render_creator_journey():
                 ("📚", "Assessment History", "Track project health over time"),
                 ("🌐", "Portfolio Intelligence", "Governance at scale"),
             ],
-            "bottom": ("The road continues", "Every successful project is a journey of continuous learning, adaptation, and improvement. ProjectRescue AI is one milestone on that road — not the final destination."),
+            "takeaway": ("The road continues", "Every successful project is a journey of continuous learning, adaptation, and improvement. ProjectRescue AI is one milestone on that road — not the final destination."),
         },
     ]
 
@@ -2643,14 +2653,14 @@ def render_creator_journey():
             f'</div>'
         )
 
-    bottom_title, bottom_text = current.get("bottom", ("", ""))
-    bottom_html = ""
-    if bottom_title or bottom_text:
-        bottom_html = (
+    takeaway_title, takeaway_text = current.get("takeaway", ("", ""))
+    takeaway_html = ""
+    if takeaway_title or takeaway_text:
+        takeaway_html = (
             f'<div class="cj-takeaway">'
             f'<div class="cj-takeaway-icon">✦</div>'
-            f'<div><div class="cj-takeaway-title">{esc(bottom_title)}</div>'
-            f'<div class="cj-takeaway-sub">{esc(bottom_text)}</div></div>'
+            f'<div><div class="cj-takeaway-title">{esc(takeaway_title)}</div>'
+            f'<div class="cj-takeaway-sub">{esc(takeaway_text)}</div></div>'
             f'</div>'
         )
 
@@ -2682,7 +2692,7 @@ def render_creator_journey():
                     <div class="cj-body">{esc(current['body'])}</div>
                     <div class="cj-card-stack">{cards_html(current.get('cards', []))}</div>
                     {publication_html}
-                    {bottom_html}
+                    {takeaway_html}
                 </div>
             </div>
         </div>
@@ -2696,8 +2706,7 @@ def render_creator_journey():
         </div>
     </div>
     """
-
-    st.markdown(html, unsafe_allow_html=True)
+    st.markdown(textwrap.dedent(html), unsafe_allow_html=True)
 
     nav_left, nav_mid, nav_right = st.columns([1, 3, 1])
     with nav_left:
