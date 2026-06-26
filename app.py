@@ -2730,6 +2730,15 @@ def render_creator_journey():
             st.rerun()
 
 
+
+
+def render_global_footer():
+    st.markdown("""
+    <div class="footer">
+        ProjectRescue AI © 2026 | Designed &amp; Developed by Sivasubramaniyan Sahadevan
+    </div>
+    """, unsafe_allow_html=True)
+
 # -----------------------------
 # MAIN UI
 # -----------------------------
@@ -2822,6 +2831,8 @@ with tab_csv:
 
     else:
         st.info("Upload a CSV file and click Analyze Portfolio.")
+
+    render_global_footer()
 
 
 with tab_manual:
@@ -2968,6 +2979,8 @@ with tab_manual:
         st.markdown("</div>", unsafe_allow_html=True)
         render_result(*st.session_state.manual_result)
 
+    render_global_footer()
+
 
 
 
@@ -2976,10 +2989,3 @@ with tab_manual:
 
 with tab_creator:
     render_creator_journey()
-
-
-st.markdown("""
-<div class="footer">
-    ProjectRescue AI · ThinkLab.pm · Built by Sivasubramaniyan Sahadevan
-</div>
-""", unsafe_allow_html=True)
