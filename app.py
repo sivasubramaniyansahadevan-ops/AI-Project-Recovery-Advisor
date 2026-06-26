@@ -2698,7 +2698,7 @@ def render_creator_journey():
         </div>
 
         <div class="cj-footer">
-            <div>ProjectRescue AI © 2026 | Built with heart by Sivasubramaniyan Sahadevan</div>
+            <div>ProjectRescue AI © 2026 | Designed & Developed by Sivasubramaniyan Sahadevan</div>
             <div>
                 <a href="https://www.linkedin.com/in/sivasubramaniyan-sahadevan" target="_blank" rel="noopener noreferrer">LinkedIn</a>
                 <a href="mailto:sivasubramaniyansahadevan@gmail.com">Email</a>
