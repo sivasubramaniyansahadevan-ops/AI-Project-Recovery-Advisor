@@ -2706,7 +2706,11 @@ def render_creator_journey():
         </div>
     </div>
     """
-    st.markdown(html.strip(), unsafe_allow_html=True)
+    # IMPORTANT: Strip leading indentation before rendering.
+    # Streamlit markdown treats 4-space-indented HTML as a code block,
+    # which is why the raw <div> code was appearing in the app.
+    html = "\n".join(line.strip() for line in html.splitlines() if line.strip())
+    st.markdown(html, unsafe_allow_html=True)
 
     nav_left, nav_mid, nav_right = st.columns([1, 3, 1])
     with nav_left:
