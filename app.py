@@ -2557,7 +2557,7 @@ def render_creator_journey():
             "cards": [
                 ("🏆", "PMP®", "Project leadership and governance"),
                 ("📘", "CAPM®", "Project management fundamentals"),
-                ("", "CSM® / CSPO®", "Agile, Scrum, and product thinking"),
+                ("🧩", "CSM® / CSPO®", "Agile, Scrum, and product thinking"),
             ],
             "takeaway": ("Continuous learning", "The goal is not to collect credentials, but to keep improving how projects are led and delivered."),
         },
