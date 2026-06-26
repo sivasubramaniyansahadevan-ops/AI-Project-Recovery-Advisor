@@ -636,7 +636,7 @@ st.markdown("""
 <div class="hero">
     <div class="hero-title">ProjectRescue <span>AI</span></div>
     <div class="hero-subtitle">Enterprise Project Health & Recovery Advisor</div>
-    <div class="hero-brand">Powered by ThinkLab.pm · Built by Sivasubramaniyan Sahadevan</div>
+    <div class="hero-brand">Powered by ThinkLab.pm</div>
 </div>
 """, unsafe_allow_html=True)
 
