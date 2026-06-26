@@ -2526,7 +2526,7 @@ def render_creator_journey():
             <div class="cj-left"><div class="cj-route">{route_items}</div></div>
             <div class="cj-main"><div class="cj-content"><div class="cj-kicker">{current['kicker']}</div><div class="cj-title">{current['title']}</div><div class="cj-title-line"></div><div class="cj-body">{current['body']}</div><div class="cj-card-stack">{cards_html(current.get('cards', []))}</div>{quote}<div class="cj-chip-row">{chips}</div>{publication}<div class="cj-side-badges">{badges_html(current.get('badges', []))}</div><div class="cj-bottom-strip">{strip_html(current.get('strip', []))}</div></div></div>
         </div>
-        <div class="cj-footer"><div>ProjectRescue AI © 2026 | Built with heart by Sivasubramaniyan Sahadevan</div><div><a href="https://www.linkedin.com/" target="_blank">LinkedIn</a><a href="mailto:sahadevansivasubramaniyan@gmail.com">Email</a></div></div>
+        <div class="cj-footer"><div>ProjectRescue AI © 2026 | Built with heart by Sivasubramaniyan Sahadevan</div><div><a href="https://www.linkedin.com/in/sivasubramaniyan-sahadevan" target="_blank">LinkedIn</a><a href="mailto:sahadevansivasubramaniyan@gmail.com">Email</a></div></div>
     </div>
     '''
     st.markdown(html, unsafe_allow_html=True)
