@@ -729,7 +729,7 @@ def polish_3d_portfolio_chart(fig):
                 gridcolor="rgba(255,255,255,0.20)"
             ),
             zaxis=dict(
-                title=dict(text="<b>Risk Score</b>", font=dict(size=16, color="#FFFFFF")),
+                title=dict(text="<b>Project Control Index (PCI)</b>", font=dict(size=16, color="#FFFFFF")),
                 tickfont=dict(size=12, color="#FFFFFF"),
                 gridcolor="rgba(255,255,255,0.20)"
             )
@@ -741,7 +741,7 @@ def polish_3d_portfolio_chart(fig):
             bordercolor="rgba(255,255,255,0.35)",
             borderwidth=1
         ),
-        title=dict(text="<b>3D Portfolio Risk View</b>", font=dict(size=24, color="#FFFFFF", family="Inter"))
+        title=dict(text="<b>3D Portfolio Control View</b>", font=dict(size=24, color="#FFFFFF", family="Inter"))
     )
     return fig
 
@@ -825,11 +825,13 @@ def sentiment_health(sentiment):
     return "Red"
 
 
-def calculate_risk_score(cost, schedule_pct, delay_days, spi, cpi, completed, risks, issues, scope, utilization, sentiment):
-    """0-100 PMO risk score.
+def calculate_internal_model_signal(cost, schedule_pct, delay_days, spi, cpi, completed, risks, issues, scope, utilization, sentiment):
+    """Internal model compatibility signal.
 
-    The score is weighted toward Earned Value Management because PMI EVM practice
-    treats SPI and CPI as leading indicators of schedule and cost performance.
+    This value is not displayed. PMI does not define a
+    project-level score from SPI/CPI/variance inputs. The trained model
+    expects a field named risk_score, so this signal is retained only as an
+    internal feature to preserve model compatibility.
     """
     score = 0.0
 
@@ -1034,17 +1036,22 @@ def generate_executive_narrative(row, final_status, priority, timeline):
 
 
 def build_trend_placeholder(row):
-    """Creates a compact trend dataset when historical records are not available.
+    """Current signal view when historical records are not available.
 
-    It is labelled as illustrative, not historical, to avoid misleading users.
+    PMI-defined EVM indicators are shown directly. PCI is a ProjectRescue AI
+    control index, not a PMI formula.
     """
     return pd.DataFrame({
-        "Indicator": ["SPI", "CPI", "Risk Score"],
-        "Current Value": [float(row["spi"]), float(row["cpi"]), float(row["risk_score"])],
+        "Indicator": ["SPI", "CPI", "Project Control Index (PCI)"],
+        "Current Value": [
+            float(row["spi"]),
+            float(row["cpi"]),
+            float(row["pci_score"])
+        ],
         "Trend Signal": [
-            "Stable" if float(row["spi"]) >= 0.95 else "Declining / Needs Review",
-            "Stable" if float(row["cpi"]) >= 0.95 else "Declining / Needs Review",
-            "Low" if float(row["risk_score"]) < 35 else "Elevated" if float(row["risk_score"]) < 70 else "High"
+            "Within tolerance" if float(row["spi"]) >= 0.95 else "Below tolerance / Needs Review",
+            "Within tolerance" if float(row["cpi"]) >= 0.95 else "Below tolerance / Needs Review",
+            str(row.get("pci_label", ""))
         ]
     })
 
@@ -1126,7 +1133,7 @@ def get_top_kpis(row):
         kpis.append({
             "Driver": driver,
             "KPI Value": value,
-            "Risk Level": kpi_severity_level(health),
+            "Control Level": kpi_severity_level(health),
             "PMO Signal": signal,
             "Severity Score": kpi_severity_score(health)
         })
@@ -1151,7 +1158,7 @@ def get_top_drivers(row):
 
 
 def risk_driver_level(level_or_score):
-    """Compatibility helper. Accepts either a severity score or a Risk Level string."""
+    """Compatibility helper. Accepts either a severity score or a Control Level string."""
     if isinstance(level_or_score, str):
         return level_or_score
     if level_or_score >= 3:
@@ -1160,12 +1167,12 @@ def risk_driver_level(level_or_score):
         return "Watchlist"
     return "Low"
 
-def override_status(prediction, risk_score, spi, cpi, delay_percent, risks, issues, sentiment):
+def override_status(prediction, spi, cpi, delay_percent, risks, issues, sentiment):
     """Final project health rule.
 
-    Rule-based PMO governance is the source of truth. The ML model is retained
-    for confidence/explainability, but it must not collapse the portfolio into
-    only Green/Red. Amber should remain the normal management-watch category.
+    Rule-based PMO governance is the source of truth. The final status uses
+    observable project controls and PMI/EVM indicators. No PMI-defined risk
+    score is used because the app does not collect probability-impact risk data.
     """
     dimension_statuses = [
         variance_health(delay_percent, 5, 15),
@@ -1173,8 +1180,7 @@ def override_status(prediction, risk_score, spi, cpi, delay_percent, risks, issu
         evm_health(cpi),
         count_health(risks, 4, 8),
         count_health(issues, 4, 8),
-        sentiment_health(sentiment),
-        "Red" if risk_score >= 70 else "Amber" if risk_score >= 35 else "Green"
+        sentiment_health(sentiment)
     ]
 
     return worst_health(*dimension_statuses)
@@ -1216,7 +1222,7 @@ def recovery_timeline(status, row):
         if row["schedule_delay_percent"] >= 10 or row["spi"] < 0.95:
             return "3-5 weeks"
         return "2-4 weeks"
-    if row["risk_score"] >= 85 or row["schedule_delay_percent"] >= 25 or row["cpi"] < 0.75:
+    if row["schedule_delay_percent"] >= 25 or row["cpi"] < 0.75 or row.get("pci_score", 100) < 60:
         return "8-12 weeks"
     return "6-8 weeks"
 
@@ -1354,20 +1360,20 @@ def generate_recovery_plan(row, status):
     if status == "Red":
         priority = "High"
         summary = (
-            f"This {row['project_type']} project is classified as {readable_status} with a risk score of {row['risk_score']}. "
+            f"This {row['project_type']} project is classified as {readable_status}. "
             f"{dimension_note}{forecast_note} Immediate recovery governance, leadership visibility, and owner-driven corrective actions are required. "
             f"Estimated recovery timeline is {timeline}."
         )
     elif status == "Amber":
         priority = "Medium"
         summary = (
-            f"This {row['project_type']} project is classified as {readable_status} with a risk score of {row['risk_score']}. "
+            f"This {row['project_type']} project is classified as {readable_status}. "
             f"{dimension_note}{forecast_note} The project appears recoverable within {timeline} if corrective actions are taken now."
         )
     else:
         priority = "Low"
         summary = (
-            f"This {row['project_type']} project is classified as {readable_status} with a risk score of {row['risk_score']}. "
+            f"This {row['project_type']} project is classified as {readable_status}. "
             f"{dimension_note}{forecast_note} Continue standard PMO monitoring and review watchlist items during the next status cycle."
         )
 
@@ -1379,7 +1385,7 @@ def assess_project(row):
     schedule_days = max(float(row["schedule_variance_days"]), 0)
     schedule_pct = float(row.get("schedule_variance_percent", round((schedule_days / duration) * 100, 2)))
 
-    risk_score = calculate_risk_score(
+    risk_score = calculate_internal_model_signal(
         float(row["cost_variance_percent"]), schedule_pct, schedule_days,
         float(row["spi"]), float(row["cpi"]), float(row["completed_tasks_percent"]),
         int(row["open_risks_count"]), int(row["open_issues_count"]), int(row["scope_changes_count"]),
@@ -1397,15 +1403,12 @@ def assess_project(row):
         "open_issues_count": int(row["open_issues_count"]),
         "scope_changes_count": int(row["scope_changes_count"]),
         "resource_utilization_percent": float(row["resource_utilization_percent"]),
-        "stakeholder_sentiment_score": float(row["stakeholder_sentiment_score"]),
-        "risk_score": risk_score
+        "stakeholder_sentiment_score": float(row["stakeholder_sentiment_score"])
     }])
 
     prediction = model.predict(input_df[features])[0]
-    confidence = round(max(model.predict_proba(input_df[features])[0]) * 100, 2)
-
     final_status = override_status(
-        prediction, risk_score, float(row["spi"]), float(row["cpi"]),
+        prediction, float(row["spi"]), float(row["cpi"]),
         schedule_pct, int(row["open_risks_count"]), int(row["open_issues_count"]),
         float(row["stakeholder_sentiment_score"])
     )
@@ -1425,8 +1428,7 @@ def assess_project(row):
         "open_issues_count": int(row["open_issues_count"]),
         "scope_changes_count": int(row["scope_changes_count"]),
         "resource_utilization_percent": float(row["resource_utilization_percent"]),
-        "stakeholder_sentiment_score": float(row["stakeholder_sentiment_score"]),
-        "risk_score": risk_score
+        "stakeholder_sentiment_score": float(row["stakeholder_sentiment_score"])
     }
 
     result_row["eac"], result_row["vac"], result_row["vac_percent"] = calculate_evm_forecast(
@@ -1447,7 +1449,7 @@ def assess_project(row):
     summary, priority, reasons, actions, timeline, escalation = generate_recovery_plan(result_row, final_status)
     result_row["executive_narrative"] = generate_executive_narrative(result_row, final_status, priority, timeline)
 
-    return result_row, prediction, final_status, confidence, severe_drivers, summary, priority, reasons, actions, timeline, escalation
+    return result_row, prediction, final_status, severe_drivers, summary, priority, reasons, actions, timeline, escalation
 
 # PDF functions
 def chart_to_buffer(fig):
@@ -1471,7 +1473,7 @@ def create_driver_chart(top_drivers):
     names = [x["Driver"] for x in top_drivers]
     scores = [x["Severity Score"] for x in top_drivers]
     labels = [x["KPI Value"] for x in top_drivers]
-    colors_list = [risk_color_map[x["Risk Level"]] for x in top_drivers]
+    colors_list = [risk_color_map[x["Control Level"]] for x in top_drivers]
     fig, ax = plt.subplots(figsize=(8, 4))
     bars = ax.bar(names, scores, color=colors_list)
     ax.set_title("KPI Severity View")
@@ -1483,7 +1485,7 @@ def create_driver_chart(top_drivers):
         ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.03, label, ha="center", va="bottom", fontsize=8)
     return chart_to_buffer(fig)
 
-def create_pdf_report(project_name, final_status, confidence, risk_score, priority, timeline, escalation,
+def create_pdf_report(project_name, final_status, priority, timeline, escalation,
                       summary, dimensions, top_drivers, reasons, actions, result_row):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -1495,8 +1497,6 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
     story.append(Paragraph(f"<b>Project Name:</b> {project_name}", styles["Normal"]))
     story.append(Paragraph(f"<b>Project Type:</b> {result_row['project_type']}", styles["Normal"]))
     story.append(Paragraph(f"<b>Final Health Status:</b> {final_status}", styles["Normal"]))
-    story.append(Paragraph(f"<b>Confidence:</b> {confidence}%", styles["Normal"]))
-    story.append(Paragraph(f"<b>Risk Score:</b> {risk_score}", styles["Normal"]))
     story.append(Paragraph(f"<b>BAC:</b> {result_row['budget_at_completion']:,.2f}", styles["Normal"]))
     story.append(Paragraph(f"<b>EAC:</b> {result_row['eac']:,.2f}", styles["Normal"]))
     story.append(Paragraph(f"<b>VAC:</b> {result_row['vac']:,.2f} ({result_row['vac_percent']:.1f}%)", styles["Normal"]))
@@ -1520,7 +1520,7 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
     story.append(Spacer(1, 12))
 
     if top_drivers:
-        story.append(Paragraph("Top KPI Risk Drivers Chart", styles["Heading2"]))
+        story.append(Paragraph("Top KPI Watchlist Drivers Chart", styles["Heading2"]))
         story.append(Image(create_driver_chart(top_drivers), width=470, height=240))
         story.append(Spacer(1, 12))
 
@@ -1537,7 +1537,7 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
     buffer.seek(0)
     return buffer
 
-def render_result(result_row, prediction, final_status, confidence, severe_drivers, summary, priority, reasons, actions, timeline, escalation):
+def render_result(result_row, prediction, final_status, severe_drivers, summary, priority, reasons, actions, timeline, escalation):
     dimensions = health_breakdown(result_row)
     top_drivers = get_top_drivers(result_row)
     card_class = {"Green": "green-card", "Amber": "amber-card", "Red": "red-card"}[final_status]
@@ -1547,8 +1547,8 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
         <div style="font-size:18px;font-weight:700;opacity:.85;">Assessment Result</div>
         <div style="font-size:42px;font-weight:900;margin-top:6px;">{health_icons[final_status]}</div>
         <div class="result-grid">
-            <div class="result-metric"><div class="result-label">Confidence</div><div class="result-value">{confidence}%</div></div>
-            <div class="result-metric"><div class="result-label">Risk Score</div><div class="result-value">{result_row['risk_score']}</div></div>
+            <div class="result-metric"><div class="result-label">Health</div><div class="result-value">{status_label(final_status)}</div></div>
+            <div class="result-metric"><div class="result-label">PCI</div><div class="result-value">{result_row['pci_score']}/100</div></div>
             <div class="result-metric"><div class="result-label">Recovery Priority</div><div class="result-value">{priority}</div></div>
             <div class="result-metric"><div class="result-label">Timeline</div><div class="result-value">{timeline}</div></div>
             <div class="result-metric"><div class="result-label">Escalation</div><div class="result-value">{escalation}</div></div>
@@ -1588,14 +1588,14 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    section_header("Top KPI Risk Drivers", "Actual KPI values, risk level, and PMO signal")
+    section_header("Top KPI Watchlist Drivers", "Actual KPI values, control level, and PMO signal")
 
     if top_drivers:
         driver_df = pd.DataFrame(top_drivers)
 
-        table_html = '<table class="driver-table"><tr><th>Driver</th><th>KPI Value</th><th>Risk Level</th><th>PMO Signal</th></tr>'
+        table_html = '<table class="driver-table"><tr><th>Driver</th><th>KPI Value</th><th>Control Level</th><th>PMO Signal</th></tr>'
         for _, rr in driver_df.iterrows():
-            level = rr["Risk Level"]
+            level = rr["Control Level"]
             table_html += (
                 f'<tr><td>{rr["Driver"]}</td>'
                 f'<td>{rr["KPI Value"]}</td>'
@@ -1609,7 +1609,7 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
             driver_df,
             x="Driver",
             y="Severity Score",
-            color="Risk Level",
+            color="Control Level",
             title="KPI Severity View",
             color_discrete_map=risk_color_map,
             text="KPI Value"
@@ -1641,7 +1641,7 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
                 gridcolor="rgba(255,255,255,0.18)"
             ),
             legend=dict(
-                title=dict(text="<b>Risk Level</b>", font=dict(size=16, color="#FFFFFF")),
+                title=dict(text="<b>Control Level</b>", font=dict(size=16, color="#FFFFFF")),
                 font=dict(size=15, color="#FFFFFF"),
                 bgcolor="rgba(20,20,20,0.85)",
                 bordercolor="rgba(255,255,255,0.25)",
@@ -1652,7 +1652,7 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
 
         st.plotly_chart(fig_driver, use_container_width=True)
     else:
-        st.write("No major risk drivers detected.")
+        st.write("No major watchlist drivers detected.")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1679,8 +1679,6 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     pdf_buffer = create_pdf_report(
         result_row["project_name"],
         final_status,
-        confidence,
-        result_row["risk_score"],
         priority,
         timeline,
         escalation,
@@ -1697,17 +1695,17 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
         data=pdf_buffer,
         file_name=f"{result_row['project_name'].replace(' ', '_')}_assessment_report.pdf",
         mime="application/pdf",
-        key=f"download_pdf_{result_row['project_name']}_{result_row['risk_score']}"
+        key=f"download_pdf_{result_row['project_name']}_{final_status}_{result_row['pci_score']}"
     )
 
     reasons_text = "\n".join([f"- {r}" for r in reasons])
     actions_text = "\n".join([f"- {a}" for a in actions])
     top_drivers_text = (
         "\n".join([
-            f"- {item['Driver']}: {item['KPI Value']} ({item['Risk Level']}) - {item['PMO Signal']}"
+            f"- {item['Driver']}: {item['KPI Value']} ({item['Control Level']}) - {item['PMO Signal']}"
             for item in top_drivers
         ])
-        if top_drivers else "No major risk drivers detected."
+        if top_drivers else "No major watchlist drivers detected."
     )
 
     share_text = f"""
@@ -1716,8 +1714,6 @@ ProjectRescue AI Assessment Report
 Project: {result_row['project_name']}
 Project Type: {result_row['project_type']}
 Health Status: {final_status}
-Confidence: {confidence}%
-Risk Score: {result_row['risk_score']}
 BAC: {result_row['budget_at_completion']:,.0f}
 EAC: {result_row['eac']:,.0f}
 VAC: {result_row['vac']:,.0f} ({result_row['vac_percent']:.1f}%)
@@ -1729,7 +1725,7 @@ Executive Escalation: {escalation}
 Executive Summary:
 {summary}
 
-Top KPI Risk Drivers:
+Top KPI Watchlist Drivers:
 {top_drivers_text}
 
 Key Reasons:
@@ -1848,15 +1844,7 @@ def portfolio_health_matrix(assessed_df):
 
 
 def portfolio_priority_matrix(assessed_df):
-    """Portfolio prioritization matrix: Risk Score band vs Project Control Index (PCI) band."""
-    def risk_band(score):
-        score = float(score)
-        if score >= 70:
-            return "High Risk"
-        if score >= 35:
-            return "Medium Risk"
-        return "Low Risk"
-
+    """Portfolio prioritization matrix: Health Status vs Project Control Index (PCI)."""
     def pci_band(score):
         score = float(score)
         if score >= 75:
@@ -1866,115 +1854,13 @@ def portfolio_priority_matrix(assessed_df):
         return "Weak Control"
 
     tmp = assessed_df.copy()
-    tmp["Risk Band"] = tmp["risk_score"].apply(risk_band)
+    tmp["Health Band"] = tmp["final_status"].apply(status_label)
     tmp["PCI Band"] = tmp["pci_score"].apply(pci_band)
-
-    risk_order = ["Low Risk", "Medium Risk", "High Risk"]
-    pci_order = ["Excellent/Good", "Needs Attention", "Weak Control"]
-    matrix_counts = (
-        tmp.groupby(["Risk Band", "PCI Band"])
-        .size()
-        .reset_index(name="Project Count")
-        .pivot(index="Risk Band", columns="PCI Band", values="Project Count")
-        .reindex(index=risk_order, columns=pci_order)
-        .fillna(0)
-        .astype(int)
-    )
-    return matrix_counts
-
-
-def portfolio_recovery_actions(assessed_df):
-    actions = []
-    critical_count = int((assessed_df["final_status"] == "Red").sum())
-    watchlist_count = int((assessed_df["final_status"] == "Amber").sum())
-    cpi_critical = int((assessed_df["cpi"].apply(evm_health) == "Red").sum())
-    spi_critical = int((assessed_df["spi"].apply(evm_health) == "Red").sum())
-    overrun_total = float(abs(assessed_df.loc[assessed_df["vac"] < 0, "vac"].sum())) if "vac" in assessed_df else 0
-
-    if critical_count:
-        actions.append(f"Create a recovery command center for {critical_count} Critical projects with named owners, weekly executive review, and decision log tracking.")
-    if watchlist_count:
-        actions.append(f"Move {watchlist_count} Watchlist projects into preventive-control cadence before they become Critical.")
-    if cpi_critical:
-        actions.append(f"Run cost-to-complete and vendor/resource burn-rate review for {cpi_critical} projects with critical CPI.")
-    if spi_critical:
-        actions.append(f"Run critical-path and milestone recovery planning for {spi_critical} projects with critical SPI.")
-    if overrun_total > 0:
-        actions.append(f"Review portfolio forecast overrun exposure of {overrun_total:,.0f} based on negative VAC.")
-    if assessed_df["pci_score"].mean() < 75:
-        actions.append("Improve project control discipline: owner, due date, mitigation, aging, and escalation discipline for weak-control projects.")
-    if not actions:
-        actions.append("Portfolio is within PMO tolerance. Continue standard governance, KPI trend review, and monthly steering reporting.")
-    return actions
-
-
-
-
-def dataframe_to_reportlab_table(df, max_rows=20, max_cols=8):
-    """Convert a dataframe slice into a ReportLab table with safe string values."""
-    safe_df = df.copy().head(max_rows)
-    safe_df = safe_df.iloc[:, :max_cols]
-    data = [list(safe_df.columns)] + safe_df.astype(str).values.tolist()
-    table = Table(data, repeatRows=1)
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#202020")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#CCCCCC")),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 7),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F5F5F5")]),
-    ]))
-    return table
-
-
-def matplotlib_buffer(fig):
-    buf = BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight", dpi=170)
-    plt.close(fig)
-    buf.seek(0)
-    return buf
-
-
-def create_portfolio_status_chart(assessed_df):
-    counts = assessed_df["portfolio_health"].value_counts().reindex(["On Track", "Watchlist", "Critical"]).fillna(0)
-    fig, ax = plt.subplots(figsize=(6.5, 3.6))
-    colors_list = [color_map["On Track"], color_map["Watchlist"], color_map["Critical"]]
-    ax.pie(counts.values, labels=counts.index, autopct=lambda p: f"{p:.0f}%" if p > 0 else "", colors=colors_list, startangle=90)
-    ax.set_title("Portfolio Health Distribution", fontweight="bold")
-    return matplotlib_buffer(fig)
-
-
-def create_portfolio_dimension_chart(assessed_df):
-    dim_df = portfolio_dimension_dataframe(assessed_df)
-    counts = dim_df.groupby(["Dimension", "Health"]).size().unstack(fill_value=0).reindex(columns=["On Track", "Watchlist", "Critical"], fill_value=0)
-    fig, ax = plt.subplots(figsize=(7.2, 4.2))
-    bottom = None
-    for health in ["On Track", "Watchlist", "Critical"]:
-        vals = counts[health].values
-        ax.bar(counts.index, vals, bottom=bottom, label=health, color=color_map[health])
-        bottom = vals if bottom is None else bottom + vals
-    ax.set_title("Portfolio Dimension Health Distribution", fontweight="bold")
-    ax.set_ylabel("Project Count")
-    ax.tick_params(axis="x", rotation=25)
-    ax.legend(title="Health")
-    return matplotlib_buffer(fig)
-
-
-def create_kpi_exposure_chart(driver_summary):
-    df = driver_summary.head(8).copy()
-    x = range(len(df))
-    fig, ax = plt.subplots(figsize=(7.2, 4.0))
-    width = 0.38
-    ax.bar([i - width/2 for i in x], df["Critical Projects"], width=width, label="Critical Projects", color=color_map["Critical Projects"])
-    ax.bar([i + width/2 for i in x], df["Watchlist Projects"], width=width, label="Watchlist Projects", color=color_map["Watchlist Projects"])
-    ax.set_xticks(list(x))
-    ax.set_xticklabels(df["Driver"], rotation=25, ha="right")
-    ax.set_ylabel("Number of Projects")
-    ax.set_title("Critical & Watchlist Exposure by KPI", fontweight="bold")
-    ax.legend(title="Exposure Level")
-    return matplotlib_buffer(fig)
-
+    matrix = pd.crosstab(tmp["Health Band"], tmp["PCI Band"])
+    desired_index = ["Critical", "Watchlist", "On Track"]
+    desired_cols = ["Excellent/Good", "Needs Attention", "Weak Control"]
+    matrix = matrix.reindex(index=desired_index, columns=desired_cols, fill_value=0)
+    return matrix
 
 def create_matrix_chart(matrix_df, title, x_label, y_label):
     # Color by severity position, not count volume.
@@ -2017,7 +1903,6 @@ def create_portfolio_pdf_report(assessed_df, portfolio_file_name=None):
     critical_projects = int((assessed_df["final_status"] == "Red").sum())
     watchlist_projects = int((assessed_df["final_status"] == "Amber").sum())
     ontrack_projects = int((assessed_df["final_status"] == "Green").sum())
-    avg_risk = round(assessed_df["risk_score"].mean(), 2)
     avg_pci = round(assessed_df["pci_score"].mean(), 1)
     total_bac = float(assessed_df["budget_at_completion"].sum()) if "budget_at_completion" in assessed_df else 0
     total_eac = float(assessed_df["eac"].sum()) if "eac" in assessed_df else 0
@@ -2031,7 +1916,7 @@ def create_portfolio_pdf_report(assessed_df, portfolio_file_name=None):
     summary_rows = [
         ["Total Projects", total_projects, "Critical Projects", critical_projects],
         ["Watchlist Projects", watchlist_projects, "On Track Projects", ontrack_projects],
-        ["Average Risk Score", avg_risk, "Average Project Control Index (PCI)", f"{avg_pci}/100"],
+        ["Average Project Control Index (PCI)", f"{avg_pci}/100", "Total Projects", len(assessed_df)],
         ["Total BAC", f"{total_bac:,.0f}", "Total EAC", f"{total_eac:,.0f}"],
         ["Total VAC", f"{total_vac:,.0f}", "", ""],
     ]
@@ -2046,7 +1931,7 @@ def create_portfolio_pdf_report(assessed_df, portfolio_file_name=None):
     story.append(Paragraph("Executive Summary", styles["Heading2"]))
     story.append(Paragraph(
         f"This portfolio contains {total_projects} projects: {ontrack_projects} On Track, "
-        f"{watchlist_projects} Watchlist, and {critical_projects} Critical. Average risk score is {avg_risk}, "
+        f"{watchlist_projects} Watchlist, and {critical_projects} Critical. "
         f"average Project Control Index (PCI) is {avg_pci}/100, and total forecast variance at completion is {total_vac:,.0f}.",
         styles["Normal"]
     ))
@@ -2059,7 +1944,7 @@ def create_portfolio_pdf_report(assessed_df, portfolio_file_name=None):
     story.append(Spacer(1, 8))
 
     driver_summary = portfolio_kpi_driver_summary(assessed_df)
-    story.append(Paragraph("Top Portfolio KPI Risk Drivers", styles["Heading2"]))
+    story.append(Paragraph("Top Portfolio KPI Watchlist Drivers", styles["Heading2"]))
     story.append(dataframe_to_reportlab_table(driver_summary, max_rows=8, max_cols=4))
     story.append(Spacer(1, 8))
     story.append(Image(create_kpi_exposure_chart(driver_summary), width=500, height=280))
@@ -2072,7 +1957,7 @@ def create_portfolio_pdf_report(assessed_df, portfolio_file_name=None):
     story.append(Spacer(1, 6))
     story.append(dataframe_to_reportlab_table(schedule_cost_matrix.reset_index(), max_rows=10, max_cols=5))
     story.append(Spacer(1, 10))
-    story.append(Image(create_matrix_chart(priority_matrix, "Recovery Priority Matrix", "Project Control Index (PCI)", "Risk Score Band"), width=470, height=285))
+    story.append(Image(create_matrix_chart(priority_matrix, "Recovery Priority Matrix", "Project Control Index (PCI)", "Health Status"), width=470, height=285))
     story.append(Spacer(1, 6))
     story.append(dataframe_to_reportlab_table(priority_matrix.reset_index(), max_rows=10, max_cols=5))
 
@@ -2084,12 +1969,12 @@ def create_portfolio_pdf_report(assessed_df, portfolio_file_name=None):
     story.append(Spacer(1, 12))
     story.append(Paragraph("Critical Project Watchlist", styles["Heading2"]))
     watch_cols = [
-        "project_name", "project_type", "portfolio_health", "risk_score", "recovery_priority",
+        "project_name", "project_type", "portfolio_health", "recovery_priority",
         "executive_escalation", "spi", "cpi", "cost_variance_percent", "schedule_delay_percent",
         "eac", "vac", "pci_score", "open_risks_count", "open_issues_count"
     ]
     available_cols = [c for c in watch_cols if c in assessed_df.columns]
-    priority_df = assessed_df.sort_values(["final_status", "risk_score"], ascending=[False, False])[available_cols]
+    priority_df = assessed_df.sort_values(["final_status", "pci_score"], ascending=[False, True])[available_cols]
     story.append(dataframe_to_reportlab_table(priority_df, max_rows=25, max_cols=8))
 
     doc.build(story)
@@ -2193,7 +2078,6 @@ def portfolio_share_links(assessed_df, portfolio_file_name, summary_text):
     critical_projects = int((assessed_df["final_status"] == "Red").sum())
     watchlist_projects = int((assessed_df["final_status"] == "Amber").sum())
     ontrack_projects = int((assessed_df["final_status"] == "Green").sum())
-    avg_risk = round(assessed_df["risk_score"].mean(), 2)
     avg_pci = round(assessed_df["pci_score"].mean(), 1)
     total_bac = float(assessed_df["budget_at_completion"].sum()) if "budget_at_completion" in assessed_df else 0
     total_eac = float(assessed_df["eac"].sum()) if "eac" in assessed_df else 0
@@ -2207,7 +2091,6 @@ Projects Assessed: {total_projects}
 On Track: {ontrack_projects}
 Watchlist: {watchlist_projects}
 Critical: {critical_projects}
-Average Risk Score: {avg_risk}
 Average Project Control Index (PCI): {avg_pci}/100
 Total BAC: {total_bac:,.0f}
 Total EAC: {total_eac:,.0f}
@@ -2249,7 +2132,6 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     critical_projects = int((assessed_df["final_status"] == "Red").sum())
     watchlist_projects = int((assessed_df["final_status"] == "Amber").sum())
     ontrack_projects = int((assessed_df["final_status"] == "Green").sum())
-    avg_risk = round(assessed_df["risk_score"].mean(), 2)
     avg_pci = round(assessed_df["pci_score"].mean(), 1)
     total_bac = float(assessed_df["budget_at_completion"].sum()) if "budget_at_completion" in assessed_df else 0
     total_eac = float(assessed_df["eac"].sum()) if "eac" in assessed_df else 0
@@ -2262,17 +2144,16 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     c3.metric("Watchlist Projects", watchlist_projects)
     c4.metric("On Track Projects", ontrack_projects)
 
-    c5, c6, c7, c8 = st.columns(4)
-    c5.metric("Average Risk Score", avg_risk)
-    c6.metric("Average Project Control Index (PCI)", f"{avg_pci}/100")
-    c7.metric("Total BAC", f"{total_bac:,.0f}")
-    c8.metric("Total Forecast VAC", f"{total_vac:,.0f}")
+    c5, c6, c7 = st.columns(3)
+    c5.metric("Average Project Control Index (PCI)", f"{avg_pci}/100")
+    c6.metric("Total BAC", f"{total_bac:,.0f}")
+    c7.metric("Total Forecast VAC", f"{total_vac:,.0f}")
 
     section_header("Portfolio Executive Summary", "Plain-language interpretation of portfolio health")
     summary_text = (
         f"This portfolio contains {total_projects} projects: {ontrack_projects} On Track, "
         f"{watchlist_projects} Watchlist, and {critical_projects} Critical. "
-        f"Average risk score is {avg_risk}, average Project Control Index (PCI) is {avg_pci}/100, "
+        f"Average Project Control Index (PCI) is {avg_pci}/100, "
         f"and total forecast variance at completion is {total_vac:,.0f}. "
         f"Executive attention should focus first on Critical projects and then on Watchlist projects with weak project control discipline or negative VAC."
     )
@@ -2286,7 +2167,7 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     e4.metric("Avg Project Control Index (PCI)", f"{avg_pci}/100")
     st.caption("EAC = BAC / CPI at project level. VAC = BAC - EAC. Negative VAC indicates forecast budget overrun.")
 
-    section_header("Portfolio Health Charts", "Health distribution and 3D risk positioning")
+    section_header("Portfolio Health Charts", "Health distribution and 3D project control positioning")
     col1, col2 = st.columns(2)
     with col1:
         status_order = ["On Track", "Watchlist", "Critical"]
@@ -2308,10 +2189,10 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
             assessed_df,
             x="schedule_variance_days",
             y="cost_variance_percent",
-            z="risk_score",
+            z="pci_score",
             color="portfolio_health",
             hover_name="project_name",
-            title="<b>3D Portfolio Risk View</b>",
+            title="<b>3D Portfolio Control View</b>",
             category_orders={"portfolio_health": status_order},
             color_discrete_map=color_map
         )
@@ -2321,7 +2202,7 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     section_header("Health Breakdown by Dimension", "Cross-portfolio status of PMO control areas")
     render_dimension_distribution(assessed_df)
 
-    section_header("Top Portfolio KPI Risk Drivers", "Critical and Watchlist exposure by KPI")
+    section_header("Top Portfolio KPI Watchlist Drivers", "Critical and Watchlist exposure by KPI")
     driver_summary = portfolio_kpi_driver_summary(assessed_df)
     st.dataframe(styled_dataframe(driver_summary), use_container_width=True)
 
@@ -2393,11 +2274,11 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
         st.dataframe(styled_dataframe(schedule_cost_matrix.reset_index().rename(columns={"index": "Schedule Performance"})), use_container_width=True)
 
     with m2:
-        st.markdown("#### Risk Score vs Project Control Index (PCI) Matrix")
-        risk_band_score = {"Low Risk": 0, "Medium Risk": 1, "High Risk": 2}
+        st.markdown("#### Health Status vs Project Control Index (PCI) Matrix")
+        health_band_score = {"On Track": 0, "Watchlist": 1, "Critical": 2}
         pci_band_score = {"Excellent/Good": 0, "Needs Attention": 1, "Weak Control": 2}
         priority_severity = pd.DataFrame(
-            [[max(risk_band_score.get(row_label, 0), pci_band_score.get(col_label, 0)) for col_label in priority_matrix.columns] for row_label in priority_matrix.index],
+            [[max(health_band_score.get(row_label, 0), pci_band_score.get(col_label, 0)) for col_label in priority_matrix.columns] for row_label in priority_matrix.index],
             index=priority_matrix.index,
             columns=priority_matrix.columns
         )
@@ -2413,12 +2294,12 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
             customdata=priority_matrix.values,
             texttemplate="<b>%{text}</b>",
             textfont={"size": 18, "color": "#FFFFFF"},
-            hovertemplate="Risk Band: %{y}<br>PCI Band: %{x}<br>Projects: %{customdata}<extra></extra>"
+            hovertemplate="Health Status: %{y}<br>PCI Band: %{x}<br>Projects: %{customdata}<extra></extra>"
         ))
         fig_priority.update_layout(
             title="<b>Recovery Priority Matrix</b>",
             xaxis_title="<b>Project Control Index (PCI)</b>",
-            yaxis_title="<b>Risk Score Band</b>",
+            yaxis_title="<b>Health Status</b>",
             paper_bgcolor="#0B0B0B",
             plot_bgcolor="#0B0B0B",
             font=dict(color="#FFFFFF", family="Inter"),
@@ -2426,7 +2307,7 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
             margin=dict(t=80, b=70)
         )
         st.plotly_chart(fig_priority, use_container_width=True)
-        st.dataframe(styled_dataframe(priority_matrix.reset_index().rename(columns={"index": "Risk Band"})), use_container_width=True)
+        st.dataframe(styled_dataframe(priority_matrix.reset_index().rename(columns={"index": "Health Status"})), use_container_width=True)
 
     st.markdown('<div class="table-note">Matrix colors show severity: green = healthy/managed, amber = watchlist, red = critical. Cell numbers show project count.</div>', unsafe_allow_html=True)
 
@@ -2445,7 +2326,6 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
             "project_type": True,
             "spi": ":.2f",
             "cpi": ":.2f",
-            "risk_score": ":.1f",
             "pci_score": ":.1f",
             "Bubble Size": False
         },
@@ -2473,14 +2353,14 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
 
     section_header("Critical Project Watchlist", "Top projects requiring management attention")
     watch_cols = [
-        "project_name", "project_type", "portfolio_health", "risk_score", "recovery_priority",
+        "project_name", "project_type", "portfolio_health", "recovery_priority",
         "executive_escalation", "spi", "cpi", "cost_variance_percent", "schedule_delay_percent",
         "eac", "vac", "pci_score", "open_risks_count", "open_issues_count"
     ]
     available_cols = [c for c in watch_cols if c in assessed_df.columns]
     priority_source = assessed_df.copy()
     priority_source["_health_order"] = priority_source["final_status"].map({"Red": 3, "Amber": 2, "Green": 1}).fillna(0)
-    priority_df = priority_source.sort_values(["_health_order", "risk_score"], ascending=[False, False])[available_cols]
+    priority_df = priority_source.sort_values(["_health_order", "pci_score"], ascending=[False, True])[available_cols]
     st.dataframe(styled_dataframe(priority_df.head(25)), use_container_width=True)
 
     section_header("Export & Share", "Download the full portfolio PDF report or share the executive summary")
@@ -2813,14 +2693,13 @@ with tab_csv:
 
                 for idx, (_, r) in enumerate(df.iterrows(), start=1):
                     try:
-                        result_row, prediction, final_status, confidence, severe, summary, priority, reasons, actions, timeline, escalation = assess_project(r)
+                        result_row, prediction, final_status, severe, summary, priority, reasons, actions, timeline, escalation = assess_project(r)
 
                         assessed_rows.append({
                             **result_row,
                             "model_prediction": prediction,
                             "final_status": final_status,
                             "portfolio_health": status_label(final_status),
-                            "confidence_percent": confidence,
                             "recovery_priority": priority,
                             "recovery_timeline": timeline,
                             "executive_escalation": escalation
