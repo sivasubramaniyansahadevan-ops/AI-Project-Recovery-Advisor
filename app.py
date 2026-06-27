@@ -1274,132 +1274,260 @@ def summarize_dimension_watchlist(row, status):
     return "All assessed dimensions are within acceptable PMO tolerance."
 
 
+def _unique_preserve_order(items):
+    """Remove duplicates while preserving narrative order."""
+    seen = set()
+    cleaned = []
+    for item in items:
+        text = str(item).strip()
+        if text and text not in seen:
+            cleaned.append(text)
+            seen.add(text)
+    return cleaned
+
+
+def _fmt_pct(value):
+    return f"{float(value):.1f}%"
+
+
 def generate_recovery_plan(row, status):
+    """Generate fully data-driven reasons, actions, and executive summary.
+
+    Nothing in this section is a fixed default paragraph. Every reason/action is
+    selected from the actual KPI condition of the project and includes the KPI
+    value that triggered it. PMI-defined EVM values are used directly; PCI and
+    recovery probability remain ProjectRescue AI decision-support indicators.
+    """
     reasons, actions = [], []
 
-    if row["schedule_delay_percent"] > 15 or row["schedule_variance_days"] >= 30:
-        reasons.append(f"Schedule delay is significant at {row['schedule_variance_days']} days, equal to {row['schedule_delay_percent']}% of planned duration.")
-        actions.append("Rebaseline the delivery plan and split remaining work into recovery milestones.")
-    elif row["schedule_delay_percent"] > 5 or row["schedule_variance_days"] >= 15:
-        reasons.append(f"Schedule delay is moderate at {row['schedule_variance_days']} days and requires management attention.")
-        actions.append("Review milestone dependencies and remove blockers affecting the critical path.")
+    project_type = row.get("project_type", "General Project")
+    readable_status = status_label(status)
 
-    if row["spi"] < 0.85:
-        reasons.append(f"SPI is {row['spi']}, indicating critical schedule performance variance.")
-        actions.append("Increase delivery cadence reviews, validate earned value, and recover critical-path work packages.")
-    elif row["spi"] < 0.95:
-        reasons.append(f"SPI is {row['spi']}, showing schedule performance below PMO tolerance.")
-        actions.append("Review milestone delivery performance and correct planned-vs-earned work gaps.")
+    duration = max(float(row.get("project_duration_days", 1)), 1)
+    delay_days = float(row["schedule_variance_days"])
+    delay_pct = float(row["schedule_delay_percent"])
+    cost_var = float(row["cost_variance_percent"])
+    spi = float(row["spi"])
+    cpi = float(row["cpi"])
+    risks = int(row["open_risks_count"])
+    issues = int(row["open_issues_count"])
+    scope = int(row["scope_changes_count"])
+    utilization = float(row["resource_utilization_percent"])
+    sentiment = float(row["stakeholder_sentiment_score"])
+    completed = float(row["completed_tasks_percent"])
+    pci = float(row.get("pci_score", pci_score(row)))
+    pci_text = row.get("pci_label", pci_label(pci))
 
-    if row["cost_variance_percent"] > 15:
-        reasons.append(f"Cost variance is high at {row['cost_variance_percent']}%, which may require budget escalation.")
-        actions.append("Perform budget impact analysis and stop or defer non-essential spend.")
-    elif row["cost_variance_percent"] > 5:
-        reasons.append(f"Cost variance is moderate at {row['cost_variance_percent']}% and should be reviewed.")
-        actions.append("Review vendor/resource costs and validate Estimate at Completion.")
-
-    if row["cpi"] < 0.85:
-        reasons.append(f"CPI is {row['cpi']}, indicating critical cost efficiency variance.")
-        actions.append("Review cost burn rate, remove low-value activities, and reset cost-to-complete controls.")
-        actions.append("Recalculate EAC/VAC and confirm whether contingency or change approval is required.")
-    elif row["cpi"] < 0.95:
-        reasons.append(f"CPI is {row['cpi']}, showing cost performance below PMO tolerance.")
-        actions.append("Tighten budget tracking and review cost-to-complete.")
-
-    if row["open_risks_count"] > 8:
-        reasons.append(f"There are {row['open_risks_count']} open risks, which may threaten delivery outcomes.")
-        actions.append("Escalate top risks to steering committee with owners and due dates.")
-    elif row["open_risks_count"] > 3:
-        reasons.append(f"There are {row['open_risks_count']} open risks requiring active mitigation.")
-        actions.append("Update the risk register and assign mitigation owners.")
-
-    if row["open_issues_count"] > 8:
-        reasons.append(f"There are {row['open_issues_count']} open issues, which may be blocking execution.")
-        actions.append("Create an issue war-room and resolve high-impact blockers first.")
-    elif row["open_issues_count"] > 3:
-        reasons.append(f"There are {row['open_issues_count']} open issues requiring faster resolution.")
-        actions.append("Assign issue owners and review blockers every 48 hours.")
-
-    if row["scope_changes_count"] > 5:
-        reasons.append(f"Scope volatility is high with {row['scope_changes_count']} scope changes.")
-        actions.append("Freeze non-critical scope and enforce formal change control.")
-    elif row["scope_changes_count"] > 2:
-        reasons.append(f"There are {row['scope_changes_count']} scope changes, which should be controlled.")
-        actions.append("Prioritize only business-critical changes through change control.")
-
-    if row["resource_utilization_percent"] > 95:
-        reasons.append(f"Resource utilization is critically high at {row['resource_utilization_percent']}%.")
-        actions.append("Add temporary support or rebalance workload to reduce burnout risk.")
-    elif row["resource_utilization_percent"] > 85:
-        reasons.append(f"Resource utilization is high at {row['resource_utilization_percent']}%.")
-        actions.append("Review workload distribution across the team.")
-
-    if row["stakeholder_sentiment_score"] < 3.0:
-        reasons.append(f"Stakeholder sentiment is low at {row['stakeholder_sentiment_score']}/5.")
-        actions.append("Conduct stakeholder alignment meeting and reset communication cadence.")
-    elif row["stakeholder_sentiment_score"] < 3.5:
-        reasons.append(f"Stakeholder sentiment is watchlist-level at {row['stakeholder_sentiment_score']}/5.")
-        actions.append("Increase stakeholder updates and clarify expectations.")
-
-    if row["project_type"] == "Procurement Automation" and (row["cost_variance_percent"] > 5 or row["cpi"] < 0.95):
+    # -------------------------
+    # Schedule signals
+    # -------------------------
+    if delay_pct > 15 or delay_days >= 30 or spi < 0.85:
+        reasons.append(
+            f"Schedule control is critical: SPI is {spi:.2f} and schedule delay is {delay_days:.0f} days ({delay_pct:.1f}% of the planned {duration:.0f}-day duration)."
+        )
         actions.extend([
-            "Reforecast Estimate at Completion for procurement spend.",
-            "Review vendor contracts, invoices, and approval delays.",
-            "Freeze non-essential procurement requests until budget variance is controlled."
+            f"Rebaseline the schedule around the remaining {100-completed:.1f}% of work and confirm the revised critical path.",
+            "Move blocked critical-path activities into a recovery tracker with owners and due dates.",
+            "Increase schedule recovery reviews until SPI returns to at least 0.95."
         ])
+    elif delay_pct > 5 or delay_days >= 15 or spi < 0.95:
+        reasons.append(
+            f"Schedule is on watchlist: SPI is {spi:.2f} and delay is {delay_days:.0f} days ({delay_pct:.1f}% of planned duration)."
+        )
+        actions.extend([
+            "Review milestone dependencies and remove blockers affecting near-term deliverables.",
+            "Validate planned-versus-earned work for the next reporting cycle.",
+            "Track schedule variance weekly until SPI is back within PMO tolerance."
+        ])
+    else:
+        reasons.append(
+            f"Schedule performance is controlled: SPI is {spi:.2f} and delay is {delay_days:.0f} days ({delay_pct:.1f}% of planned duration)."
+        )
+        actions.append(
+            f"Maintain the current schedule cadence and monitor SPI so it remains at or above 0.95."
+        )
 
-    if row["project_type"] == "Cloud Migration" and (row["schedule_delay_percent"] > 5 or row["spi"] < 0.95):
-        actions.append("Review migration wave plan, cutover readiness, and rollback strategy.")
+    # -------------------------
+    # Cost/EVM signals
+    # -------------------------
+    if cost_var > 15 or cpi < 0.85:
+        reasons.append(
+            f"Cost control is critical: CPI is {cpi:.2f}, cost variance is {cost_var:.1f}%, and VAC is {row['vac']:,.0f}."
+        )
+        actions.extend([
+            "Perform cost variance analysis by work package and isolate the largest burn-rate drivers.",
+            f"Reforecast EAC immediately; current EAC is {row['eac']:,.0f} against BAC {row['budget_at_completion']:,.0f}.",
+            "Freeze non-essential spend until cost-to-complete is reviewed and approved."
+        ])
+    elif cost_var > 5 or cpi < 0.95:
+        reasons.append(
+            f"Cost is on watchlist: CPI is {cpi:.2f}, cost variance is {cost_var:.1f}%, and VAC is {row['vac']:,.0f}."
+        )
+        actions.extend([
+            "Validate remaining cost-to-complete against the current EAC and vendor/resource forecasts.",
+            "Review controllable spend items before the next financial checkpoint.",
+            "Track CPI weekly until cost performance returns to at least 0.95."
+        ])
+    else:
+        reasons.append(
+            f"Cost performance is controlled: CPI is {cpi:.2f}, cost variance is {cost_var:.1f}%, and VAC is {row['vac']:,.0f}."
+        )
+        actions.append(
+            f"Maintain current cost controls and recheck EAC ({row['eac']:,.0f}) during the next status cycle."
+        )
 
-    if row["project_type"] == "ERP Implementation" and status in ["Amber", "Red"]:
-        actions.append("Validate data migration readiness, testing completion, and go-live criteria.")
+    # TCPI guidance
+    tcpi_val = row.get("tcpi")
+    if tcpi_val is not None:
+        tcpi_val = float(tcpi_val)
+        if tcpi_val > 1.10:
+            reasons.append(f"TCPI is {tcpi_val:.2f}, meaning the remaining work requires materially better cost efficiency than the current baseline allows.")
+            actions.append("Review whether the remaining budget is realistic; escalate funding, scope, or productivity trade-offs if needed.")
+        elif tcpi_val > 1.00:
+            reasons.append(f"TCPI is {tcpi_val:.2f}, so the remaining work must be completed slightly more efficiently than current spend performance.")
+            actions.append("Keep cost-to-complete under close control because TCPI is above 1.00.")
+        else:
+            reasons.append(f"TCPI is {tcpi_val:.2f}, indicating the remaining work is achievable within the current budget trend if performance is maintained.")
 
-    if row["project_type"] == "Cybersecurity Program" and status in ["Amber", "Red"]:
-        actions.append("Review unresolved vulnerabilities, compliance gaps, and executive risk exposure.")
+    # -------------------------
+    # Risk and issue exposure
+    # -------------------------
+    if risks > 8:
+        reasons.append(f"Open risk exposure is high with {risks} active risks.")
+        actions.extend([
+            "Prioritize the top risks by impact and proximity, then assign mitigation owners and due dates.",
+            "Escalate risks that threaten cost, schedule, scope, or go-live readiness to the steering committee."
+        ])
+    elif risks > 3:
+        reasons.append(f"Risk exposure needs active management with {risks} open risks.")
+        actions.append("Update the risk register and confirm mitigation owners for each open risk.")
+    else:
+        reasons.append(f"Risk exposure is manageable with {risks} open risks.")
+        if risks > 0:
+            actions.append(f"Review the {risks} open risks in the next governance meeting and close risks that are no longer active.")
+        else:
+            actions.append("Continue risk identification during weekly governance reviews to avoid late discovery.")
 
-    if not reasons:
-        reasons = [
-            "Project KPIs are within acceptable PMO thresholds.",
-            f"SPI is {row['spi']} and CPI is {row['cpi']}, indicating stable schedule and cost performance.",
-            f"Open risks ({row['open_risks_count']}) and issues ({row['open_issues_count']}) are manageable.",
-            f"Stakeholder sentiment is positive at {row['stakeholder_sentiment_score']}/5."
-        ]
+    if issues > 8:
+        reasons.append(f"Execution issue load is high with {issues} open issues.")
+        actions.extend([
+            "Create an issue war-room for aging or high-impact blockers.",
+            "Assign resolution owners and target dates for all critical open issues."
+        ])
+    elif issues > 3:
+        reasons.append(f"Issue management needs attention with {issues} open issues.")
+        actions.append("Review issue aging and resolve blockers before the next reporting cycle.")
+    else:
+        reasons.append(f"Issue load is manageable with {issues} open issues.")
+        if issues > 0:
+            actions.append(f"Close or reclassify the {issues} open issues during the next project checkpoint.")
 
-    if not actions:
-        actions = [
-            "Continue weekly KPI monitoring.",
-            "Maintain current delivery rhythm.",
-            "Track risks, issues, and stakeholder communication."
-        ]
+    # -------------------------
+    # Scope, resource, stakeholder, and PCI signals
+    # -------------------------
+    if scope > 5:
+        reasons.append(f"Scope volatility is high with {scope} approved or pending scope changes.")
+        actions.append("Freeze non-critical scope and route all changes through formal impact assessment.")
+    elif scope > 2:
+        reasons.append(f"Scope control needs monitoring with {scope} scope changes.")
+        actions.append("Prioritize only business-critical changes and document schedule/cost impact before approval.")
+    else:
+        reasons.append(f"Scope remains controlled with {scope} scope change(s).")
+        actions.append("Keep change-control discipline active so scope changes remain tied to approved business value.")
+
+    if utilization > 95:
+        reasons.append(f"Resource utilization is critically high at {utilization:.0f}%, creating delivery and burnout risk.")
+        actions.append("Rebalance workload or add temporary support to reduce utilization below 90%.")
+    elif utilization > 85:
+        reasons.append(f"Resource utilization is elevated at {utilization:.0f}% and should be watched.")
+        actions.append("Review workload distribution and protect capacity for critical-path activities.")
+    elif utilization < 60:
+        reasons.append(f"Resource utilization is low at {utilization:.0f}%, which may indicate underuse or planning inefficiency.")
+        actions.append("Validate whether team capacity is aligned to upcoming work packages and milestones.")
+    else:
+        reasons.append(f"Resource utilization is healthy at {utilization:.0f}%.")
+        actions.append("Maintain resource utilization within the sustainable 70% to 85% range where possible.")
+
+    if sentiment < 3.0:
+        reasons.append(f"Stakeholder sentiment is low at {sentiment:.1f}/5.")
+        actions.append("Conduct a stakeholder alignment session and reset expectations, decisions, and communication cadence.")
+    elif sentiment < 3.5:
+        reasons.append(f"Stakeholder sentiment is watchlist-level at {sentiment:.1f}/5.")
+        actions.append("Increase stakeholder updates and confirm decision owners for unresolved concerns.")
+    else:
+        reasons.append(f"Stakeholder sentiment is positive at {sentiment:.1f}/5.")
+        actions.append("Maintain stakeholder engagement through planned governance updates and decision checkpoints.")
+
+    if pci < 60:
+        reasons.append(f"PCI is weak at {pci:.1f}/100 ({pci_text}), indicating project-control discipline needs improvement.")
+        actions.append("Strengthen project-control routines across schedule, cost, issue, risk, scope, and stakeholder tracking.")
+    elif pci < 75:
+        reasons.append(f"PCI is {pci:.1f}/100 ({pci_text}), showing project controls need attention.")
+        actions.append("Improve project-control discipline by tightening KPI review cadence and ownership tracking.")
+    elif pci < 90:
+        reasons.append(f"PCI is {pci:.1f}/100 ({pci_text}), showing good control with minor improvement opportunities.")
+        actions.append("Use PCI watchlist signals to improve control discipline without escalating the overall project status.")
+    else:
+        reasons.append(f"PCI is strong at {pci:.1f}/100 ({pci_text}).")
+        actions.append("Preserve current control routines because PCI indicates strong delivery governance. ")
+
+    # -------------------------
+    # Project-type specific actions, only when the related KPI condition exists.
+    # -------------------------
+    if project_type == "Cloud Migration":
+        if delay_pct > 5 or spi < 0.95 or issues > 3:
+            actions.append("Review migration wave plan, cutover readiness, rollback ownership, and dependency blockers.")
+        else:
+            actions.append("Keep migration wave readiness, cutover checklist, and rollback plan validated for upcoming milestones.")
+    elif project_type == "ERP Implementation":
+        if status in ["Amber", "Red"] or delay_pct > 5 or issues > 3:
+            actions.append("Validate data migration readiness, testing completion, UAT defects, and go-live entry criteria.")
+        else:
+            actions.append("Maintain ERP readiness checks across data migration, testing, UAT, and go-live criteria.")
+    elif project_type == "Cybersecurity Program":
+        if status in ["Amber", "Red"] or risks > 3 or issues > 3:
+            actions.append("Review unresolved vulnerabilities, compliance gaps, risk acceptances, and executive risk exposure.")
+        else:
+            actions.append("Continue compliance evidence tracking and confirm vulnerability closure remains on schedule.")
+    elif project_type == "Procurement Automation":
+        if cost_var > 5 or cpi < 0.95:
+            actions.append("Review vendor contracts, invoices, approval delays, and procurement spend forecast.")
+        else:
+            actions.append("Maintain vendor, approval, and spend-control checks for the next procurement cycle.")
+
+    reasons = _unique_preserve_order(reasons)[:8]
+    actions = _unique_preserve_order(actions)[:8]
 
     timeline = recovery_timeline(status, row)
     escalation = escalation_required(status, row)
     dimension_note = summarize_dimension_watchlist(row, status)
-    readable_status = status_label(status)
     forecast_note = (
-        f" EAC is {row['eac']:,.0f} against BAC {row['budget_at_completion']:,.0f}; "
-        f"VAC is {row['vac']:,.0f} ({row['vac_percent']:.1f}%). "
-        f"PCI is {row['pci_score']}/100 ({row['pci_label']})."
+        f"EAC is {row['eac']:,.0f} against BAC {row['budget_at_completion']:,.0f}; "
+        f"VAC is {row['vac']:,.0f} ({row['vac_percent']:.1f}%); "
+        f"TCPI is {row['tcpi'] if row.get('tcpi') is not None else 'N/A'}; "
+        f"PCI is {pci:.1f}/100 ({pci_text})."
     )
 
     if status == "Red":
         priority = "High"
         summary = (
-            f"This {row['project_type']} project is classified as {readable_status}. "
-            f"{dimension_note}{forecast_note} Immediate recovery governance, leadership visibility, and owner-driven corrective actions are required. "
-            f"Estimated recovery timeline is {timeline}."
+            f"This {project_type} project is classified as {readable_status} because one or more control areas require immediate correction. "
+            f"{dimension_note} {forecast_note} Priority should be placed on the highest-severity schedule, cost, risk, issue, scope, resource, or stakeholder signals listed below. "
+            f"Estimated recovery timeline is {timeline}, with executive escalation set to {escalation}."
         )
     elif status == "Amber":
         priority = "Medium"
         summary = (
-            f"This {row['project_type']} project is classified as {readable_status}. "
-            f"{dimension_note}{forecast_note} The project appears recoverable within {timeline} if corrective actions are taken now."
+            f"This {project_type} project is classified as {readable_status} because at least one operational KPI is outside PMO tolerance. "
+            f"{dimension_note} {forecast_note} The project remains recoverable if the specific corrective actions below are executed within {timeline}. "
+            f"Executive escalation is currently {escalation}."
         )
     else:
         priority = "Low"
         summary = (
-            f"This {row['project_type']} project is classified as {readable_status}. "
-            f"{dimension_note}{forecast_note} Continue standard PMO monitoring and review watchlist items during the next status cycle."
+            f"This {project_type} project is classified as {readable_status} because schedule, cost, issue, risk, scope, resource, and stakeholder signals are within PMO tolerance. "
+            f"{dimension_note} {forecast_note} No recovery intervention is required; the recommended actions focus on maintaining current performance and closing the remaining observable control items. "
+            f"Executive escalation is {escalation}."
         )
 
     return summary, priority, reasons, actions, timeline, escalation
