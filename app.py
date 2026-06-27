@@ -837,7 +837,7 @@ def calculate_risk_score(cost, schedule_pct, delay_days, spi, cpi, completed, ri
     score += max(cost, 0) * 0.80
     score += max(schedule_pct, 0) * 0.70
 
-    # RAID/change exposure
+    # Risk, issue, and change exposure
     score += max(risks, 0) * 1.50
     score += max(issues, 0) * 1.20
     score += max(scope, 0) * 1.50
@@ -907,12 +907,12 @@ def health_breakdown(row):
     risk_h = count_health(int(row["open_risks_count"]), 4, 8)
     issue_h = count_health(int(row["open_issues_count"]), 4, 8)
     scope_h = count_health(int(row["scope_changes_count"]), 2, 5)
-    raid_h = raid_maturity_health(row)
+    pci_h = pci_health(row)
 
     return {
         "Schedule Performance": schedule_h,
         "Cost Performance": cost_h,
-        "RAID Governance": raid_h,
+        "Project Control Index (PCI)": pci_h,
         "Scope Control": scope_h,
         "Resource Capacity": utilization_health(float(row["resource_utilization_percent"])),
         "Stakeholder Alignment": sentiment_health(float(row["stakeholder_sentiment_score"])),
@@ -969,7 +969,7 @@ def calculate_tcpi(bac, ev, ac):
 def calculate_recovery_probability(row, final_status):
     """Practical PMO recovery probability from current health indicators.
 
-    This is a decision-support estimate, not a promise. It uses EVM, RAID,
+    This is a decision-support estimate, not a promise. It uses EVM, PCI,
     stakeholder alignment, variance severity, and remaining delivery runway.
     Floors/caps are applied by final status so an On Track project cannot show
     an unrealistic 0% recovery probability.
@@ -983,7 +983,7 @@ def calculate_recovery_probability(row, final_status):
     probability -= max(int(row["open_issues_count"]) - 2, 0) * 2.5
     probability -= max(int(row["scope_changes_count"]) - 2, 0) * 2.0
     probability -= max(3.8 - float(row["stakeholder_sentiment_score"]), 0) * 8
-    probability -= max(75 - float(row["raid_maturity_score"]), 0) * 0.5
+    probability -= max(75 - float(row["pci_score"]), 0) * 0.5
     probability -= max(float(row["completed_tasks_percent"]) - 80, 0) * 0.4
 
     if final_status == "Red":
@@ -1029,7 +1029,7 @@ def generate_executive_narrative(row, final_status, priority, timeline):
         f"{lead} Current health is {status}, with primary attention needed in {concern_text}. "
         f"Stable areas include {stable_text}. Recovery priority is {priority}, with an estimated timeline of {timeline}. "
         f"EVM forecast shows EAC {row['eac']:,.0f} against BAC {row['budget_at_completion']:,.0f}, "
-        f"and RAID maturity is {row['raid_maturity_score']}/100 ({row['raid_maturity_label']})."
+        f"and PCI is {row['pci_score']}/100 ({row['pci_label']})."
     )
 
 
@@ -1048,50 +1048,66 @@ def build_trend_placeholder(row):
         ]
     })
 
-def raid_maturity_score(row):
-    """Proxy RAID maturity score from available inputs.
+def pci_score(row):
+    """Project Control Index (PCI) based only on inputs captured by ProjectRescue AI.
 
-    This is intentionally conservative: a few open risks/issues should not make
-    governance look fully mature. The score represents control discipline, not
-    the absence of all risks.
+    PCI is a defensible PMO control score across five observable control domains:
+    Schedule, Cost, Risk/Issue exposure, Scope Control, and Stakeholder Alignment.
+
+    Formula:
+    PCI = 30% Schedule Control + 30% Cost Control + 20% Risk/Issue Control
+          + 10% Scope Control + 10% Stakeholder Alignment.
     """
-    risks = int(row["open_risks_count"])
-    issues = int(row["open_issues_count"])
-    scope = int(row["scope_changes_count"])
-    sentiment = float(row["stakeholder_sentiment_score"])
+    spi = float(row["spi"])
+    cpi = float(row["cpi"])
+    schedule_delay = max(float(row["schedule_delay_percent"]), 0.0)
+    cost_variance = max(float(row["cost_variance_percent"]), 0.0)
+    risks = max(int(row["open_risks_count"]), 0)
+    issues = max(int(row["open_issues_count"]), 0)
+    scope_changes = max(int(row["scope_changes_count"]), 0)
+    sentiment = max(min(float(row["stakeholder_sentiment_score"]), 5.0), 0.0)
 
-    score = 100.0
-    score -= max(risks - 2, 0) * 5.0
-    score -= max(issues - 2, 0) * 6.0
-    score -= max(scope - 1, 0) * 5.0
-    score -= max(4.0 - sentiment, 0) * 12.0
+    schedule_index_score = min(max(spi, 0.0), 1.0) * 100
+    schedule_delay_score = max(0.0, 100 - (schedule_delay * 3))
+    schedule_score = (schedule_index_score * 0.70) + (schedule_delay_score * 0.30)
 
-    if risks >= 9:
-        score -= 12
-    if issues >= 9:
-        score -= 14
-    if scope >= 6:
-        score -= 10
+    cost_index_score = min(max(cpi, 0.0), 1.0) * 100
+    cost_variance_score = max(0.0, 100 - (cost_variance * 3))
+    cost_score = (cost_index_score * 0.70) + (cost_variance_score * 0.30)
 
-    return round(max(min(score, 100), 0), 1)
+    risk_issue_score = max(0.0, 100 - (risks * 6) - (issues * 8))
+    scope_score = max(0.0, 100 - (scope_changes * 10))
+    stakeholder_score = (sentiment / 5.0) * 100
 
-def raid_maturity_health(row):
-    score = float(row.get("raid_maturity_score", raid_maturity_score(row)))
-    if score >= 75:
+    pci = (
+        schedule_score * 0.30
+        + cost_score * 0.30
+        + risk_issue_score * 0.20
+        + scope_score * 0.10
+        + stakeholder_score * 0.10
+    )
+
+    return round(max(min(pci, 100.0), 0.0), 1)
+
+
+def pci_health(row):
+    score = float(row.get("pci_score", pci_score(row)))
+    if score >= 90:
         return "Green"
-    if score >= 60:
+    if score >= 75:
         return "Amber"
     return "Red"
 
 
-def raid_maturity_label(score):
+def pci_label(score):
+    score = float(score)
     if score >= 90:
-        return "Mature"
+        return "Excellent Control"
     if score >= 75:
-        return "Managed"
+        return "Good Control"
     if score >= 60:
-        return "Developing"
-    return "Weak"
+        return "Needs Attention"
+    return "Weak Control"
 
 
 def kpi_severity_level(status):
@@ -1119,12 +1135,12 @@ def get_top_kpis(row):
     add("SPI", f"{float(row['spi']):.2f}", evm_health(float(row["spi"])), "Schedule efficiency / earned value")
     add("Cost Variance", f"{float(row['cost_variance_percent']):.1f}%", variance_health(float(row["cost_variance_percent"]), 5, 15), "Budget variance")
     add("Schedule Delay", f"{float(row['schedule_delay_percent']):.1f}% / {float(row['schedule_variance_days']):.0f} days", variance_health(float(row["schedule_delay_percent"]), 5, 15), "Time variance")
-    add("Open Risks", f"{int(row['open_risks_count'])}", count_health(int(row["open_risks_count"]), 4, 8), "RAID exposure")
+    add("Open Risks", f"{int(row['open_risks_count'])}", count_health(int(row["open_risks_count"]), 4, 8), "Open risk exposure")
     add("Open Issues", f"{int(row['open_issues_count'])}", count_health(int(row["open_issues_count"]), 4, 8), "Execution blockers")
     add("Scope Changes", f"{int(row['scope_changes_count'])}", count_health(int(row["scope_changes_count"]), 2, 5), "Change control")
     add("Resource Utilization", f"{float(row['resource_utilization_percent']):.0f}%", utilization_health(float(row["resource_utilization_percent"])), "Capacity / overload")
     add("Stakeholder Sentiment", f"{float(row['stakeholder_sentiment_score']):.1f}/5", sentiment_health(float(row["stakeholder_sentiment_score"])), "Stakeholder alignment")
-    add("RAID Maturity", f"{float(row['raid_maturity_score']):.1f}/100", raid_maturity_health(row), "Governance discipline")
+    add("Project Control Index (PCI)", f"{float(row['pci_score']):.1f}/100", pci_health(row), "Project control discipline")
 
     return sorted(kpis, key=lambda x: x["Severity Score"], reverse=True)[:6]
 
@@ -1174,8 +1190,8 @@ def sanity_check_status(status, row):
         severe.append("Schedule performance is critical")
     if dims.get("Cost Performance") == "Red":
         severe.append("Cost performance is critical")
-    if dims.get("RAID Governance") == "Red":
-        severe.append("RAID governance maturity is weak")
+    if dims.get("Project Control Index (PCI)") == "Red":
+        severe.append("Project control discipline is weak")
     if dims.get("Scope Control") == "Red":
         severe.append("Scope control is critical")
     if dims.get("Resource Capacity") == "Red":
@@ -1264,7 +1280,7 @@ def generate_recovery_plan(row, status):
         actions.append("Escalate top risks to steering committee with owners and due dates.")
     elif row["open_risks_count"] > 3:
         reasons.append(f"There are {row['open_risks_count']} open risks requiring active mitigation.")
-        actions.append("Update RAID log and assign mitigation owners.")
+        actions.append("Update the risk register and assign mitigation owners.")
 
     if row["open_issues_count"] > 8:
         reasons.append(f"There are {row['open_issues_count']} open issues, which may be blocking execution.")
@@ -1332,7 +1348,7 @@ def generate_recovery_plan(row, status):
     forecast_note = (
         f" EAC is {row['eac']:,.0f} against BAC {row['budget_at_completion']:,.0f}; "
         f"VAC is {row['vac']:,.0f} ({row['vac_percent']:.1f}%). "
-        f"RAID maturity is {row['raid_maturity_score']}/100 ({row['raid_maturity_label']})."
+        f"PCI is {row['pci_score']}/100 ({row['pci_label']})."
     )
 
     if status == "Red":
@@ -1421,8 +1437,8 @@ def assess_project(row):
     result_row["earned_value"] = round(result_row["budget_at_completion"] * (result_row["completed_tasks_percent"] / 100), 2)
     result_row["actual_cost"] = round(result_row["earned_value"] / max(result_row["cpi"], 0.01), 2)
     result_row["tcpi"] = calculate_tcpi(result_row["budget_at_completion"], result_row["earned_value"], result_row["actual_cost"])
-    result_row["raid_maturity_score"] = raid_maturity_score(result_row)
-    result_row["raid_maturity_label"] = raid_maturity_label(result_row["raid_maturity_score"])
+    result_row["pci_score"] = pci_score(result_row)
+    result_row["pci_label"] = pci_label(result_row["pci_score"])
 
     final_status, severe_drivers = sanity_check_status(final_status, result_row)
     recovery_probability, recovery_probability_label = calculate_recovery_probability(result_row, final_status)
@@ -1486,7 +1502,7 @@ def create_pdf_report(project_name, final_status, confidence, risk_score, priori
     story.append(Paragraph(f"<b>VAC:</b> {result_row['vac']:,.2f} ({result_row['vac_percent']:.1f}%)", styles["Normal"]))
     story.append(Paragraph(f"<b>TCPI:</b> {'N/A' if result_row.get('tcpi') is None else result_row['tcpi']}", styles["Normal"]))
     story.append(Paragraph(f"<b>Recovery Probability:</b> {result_row.get('recovery_probability', 0):.1f}% - {escape(str(result_row.get('recovery_probability_label', '')))}", styles["Normal"]))
-    story.append(Paragraph(f"<b>RAID Maturity:</b> {result_row['raid_maturity_score']}/100 - {result_row['raid_maturity_label']}", styles["Normal"]))
+    story.append(Paragraph(f"<b>Project Control Index (PCI):</b> {result_row['pci_score']}/100 - {result_row['pci_label']}", styles["Normal"]))
     story.append(Paragraph(f"<b>Recovery Priority:</b> {priority}", styles["Normal"]))
     story.append(Paragraph(f"<b>Recovery Timeline:</b> {timeline}", styles["Normal"]))
     story.append(Paragraph(f"<b>Executive Escalation:</b> {escalation}", styles["Normal"]))
@@ -1546,14 +1562,14 @@ def render_result(result_row, prediction, final_status, confidence, severe_drive
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="panel">', unsafe_allow_html=True)
-    section_header("EVM Forecast, Recovery Probability & RAID Maturity", "PMBOK/EVM forecast and governance readiness")
+    section_header("EVM Forecast, Recovery Probability & Project Control Index (PCI)", "PMBOK/EVM forecast and project control readiness")
     f1, f2, f3, f4, f5, f6 = st.columns(6)
     f1.metric("BAC", f"{result_row['budget_at_completion']:,.0f}")
     f2.metric("EAC", f"{result_row['eac']:,.0f}")
     f3.metric("VAC", f"{result_row['vac']:,.0f}", f"{result_row['vac_percent']:.1f}%")
     f4.metric("TCPI", "N/A" if result_row.get('tcpi') is None else f"{result_row['tcpi']:.2f}")
     f5.metric("Recovery Probability", f"{result_row.get('recovery_probability', 0):.1f}%", result_row.get('recovery_probability_label', ''))
-    f6.metric("RAID Maturity", f"{result_row['raid_maturity_score']}/100", result_row['raid_maturity_label'])
+    f6.metric("Project Control Index (PCI)", f"{result_row['pci_score']}/100", result_row['pci_label'])
     st.caption("EAC = BAC / CPI. VAC = BAC - EAC. TCPI estimates the cost performance needed to finish within BAC. Negative VAC indicates a forecast budget overrun.")
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1705,7 +1721,7 @@ Risk Score: {result_row['risk_score']}
 BAC: {result_row['budget_at_completion']:,.0f}
 EAC: {result_row['eac']:,.0f}
 VAC: {result_row['vac']:,.0f} ({result_row['vac_percent']:.1f}%)
-RAID Maturity: {result_row['raid_maturity_score']}/100 - {result_row['raid_maturity_label']}
+Project Control Index (PCI): {result_row['pci_score']}/100 - {result_row['pci_label']}
 Recovery Priority: {priority}
 Recovery Timeline: {timeline}
 Executive Escalation: {escalation}
@@ -1785,17 +1801,17 @@ def portfolio_kpi_driver_summary(assessed_df):
     issue_health = assessed_df["open_issues_count"].apply(lambda x: count_health(int(x), 4, 8))
     scope_health = assessed_df["scope_changes_count"].apply(lambda x: count_health(int(x), 2, 5))
     stakeholder_health = assessed_df["stakeholder_sentiment_score"].apply(lambda x: sentiment_health(float(x)))
-    raid_health = assessed_df.apply(lambda r: raid_maturity_health(r), axis=1)
+    pci_health_series = assessed_df.apply(lambda r: pci_health(r), axis=1)
 
     add("Cost Performance / CPI", f"Avg CPI {assessed_df['cpi'].mean():.2f}", (cpi_health == "Red").sum(), (cpi_health == "Amber").sum(), "Earned value cost efficiency")
     add("Schedule Performance / SPI", f"Avg SPI {assessed_df['spi'].mean():.2f}", (spi_health == "Red").sum(), (spi_health == "Amber").sum(), "Earned value schedule efficiency")
     add("Cost Variance", f"Avg {assessed_df['cost_variance_percent'].mean():.1f}%", (cost_health == "Red").sum(), (cost_health == "Amber").sum(), "Budget variance exposure")
     add("Schedule Delay", f"Avg {assessed_df['schedule_delay_percent'].mean():.1f}%", (schedule_health == "Red").sum(), (schedule_health == "Amber").sum(), "Time variance exposure")
-    add("Open Risks", f"Avg {assessed_df['open_risks_count'].mean():.1f}", (risk_health == "Red").sum(), (risk_health == "Amber").sum(), "RAID risk exposure")
+    add("Open Risks", f"Avg {assessed_df['open_risks_count'].mean():.1f}", (risk_health == "Red").sum(), (risk_health == "Amber").sum(), "Open risk exposure")
     add("Open Issues", f"Avg {assessed_df['open_issues_count'].mean():.1f}", (issue_health == "Red").sum(), (issue_health == "Amber").sum(), "Execution blockers")
     add("Scope Changes", f"Avg {assessed_df['scope_changes_count'].mean():.1f}", (scope_health == "Red").sum(), (scope_health == "Amber").sum(), "Change control discipline")
     add("Stakeholder Sentiment", f"Avg {assessed_df['stakeholder_sentiment_score'].mean():.1f}/5", (stakeholder_health == "Red").sum(), (stakeholder_health == "Amber").sum(), "Stakeholder alignment")
-    add("RAID Maturity", f"Avg {assessed_df['raid_maturity_score'].mean():.1f}/100", (raid_health == "Red").sum(), (raid_health == "Amber").sum(), "Governance maturity")
+    add("Project Control Index (PCI)", f"Avg {assessed_df['pci_score'].mean():.1f}/100", (pci_health_series == "Red").sum(), (pci_health_series == "Amber").sum(), "Project control maturity")
 
     out = pd.DataFrame(rows)
     out["Exposure Sort"] = out["Critical Projects"] * 3 + out["Watchlist Projects"]
@@ -1832,7 +1848,7 @@ def portfolio_health_matrix(assessed_df):
 
 
 def portfolio_priority_matrix(assessed_df):
-    """Portfolio prioritization matrix: Risk Score band vs RAID Maturity band."""
+    """Portfolio prioritization matrix: Risk Score band vs Project Control Index (PCI) band."""
     def risk_band(score):
         score = float(score)
         if score >= 70:
@@ -1841,26 +1857,26 @@ def portfolio_priority_matrix(assessed_df):
             return "Medium Risk"
         return "Low Risk"
 
-    def raid_band(score):
+    def pci_band(score):
         score = float(score)
         if score >= 75:
-            return "Managed/Mature"
+            return "Excellent/Good"
         if score >= 60:
-            return "Developing"
-        return "Weak"
+            return "Needs Attention"
+        return "Weak Control"
 
     tmp = assessed_df.copy()
     tmp["Risk Band"] = tmp["risk_score"].apply(risk_band)
-    tmp["RAID Band"] = tmp["raid_maturity_score"].apply(raid_band)
+    tmp["PCI Band"] = tmp["pci_score"].apply(pci_band)
 
     risk_order = ["Low Risk", "Medium Risk", "High Risk"]
-    raid_order = ["Managed/Mature", "Developing", "Weak"]
+    pci_order = ["Excellent/Good", "Needs Attention", "Weak Control"]
     matrix_counts = (
-        tmp.groupby(["Risk Band", "RAID Band"])
+        tmp.groupby(["Risk Band", "PCI Band"])
         .size()
         .reset_index(name="Project Count")
-        .pivot(index="Risk Band", columns="RAID Band", values="Project Count")
-        .reindex(index=risk_order, columns=raid_order)
+        .pivot(index="Risk Band", columns="PCI Band", values="Project Count")
+        .reindex(index=risk_order, columns=pci_order)
         .fillna(0)
         .astype(int)
     )
@@ -1885,8 +1901,8 @@ def portfolio_recovery_actions(assessed_df):
         actions.append(f"Run critical-path and milestone recovery planning for {spi_critical} projects with critical SPI.")
     if overrun_total > 0:
         actions.append(f"Review portfolio forecast overrun exposure of {overrun_total:,.0f} based on negative VAC.")
-    if assessed_df["raid_maturity_score"].mean() < 75:
-        actions.append("Improve RAID governance: owner, due date, mitigation, aging, and escalation discipline for weak/developing projects.")
+    if assessed_df["pci_score"].mean() < 75:
+        actions.append("Improve project control discipline: owner, due date, mitigation, aging, and escalation discipline for weak-control projects.")
     if not actions:
         actions.append("Portfolio is within PMO tolerance. Continue standard governance, KPI trend review, and monthly steering reporting.")
     return actions
@@ -1968,9 +1984,9 @@ def create_matrix_chart(matrix_df, title, x_label, y_label):
         row_vals = []
         for col_label in matrix_df.columns:
             labels = [row_label, col_label]
-            if "Critical" in labels or "High Risk" in labels or "Weak" in labels:
+            if "Critical" in labels or "High Risk" in labels or "Weak Control" in labels:
                 row_vals.append(2)
-            elif "Watchlist" in labels or "Medium Risk" in labels or "Developing" in labels:
+            elif "Watchlist" in labels or "Medium Risk" in labels or "Needs Attention" in labels:
                 row_vals.append(1)
             else:
                 row_vals.append(0)
@@ -2002,7 +2018,7 @@ def create_portfolio_pdf_report(assessed_df, portfolio_file_name=None):
     watchlist_projects = int((assessed_df["final_status"] == "Amber").sum())
     ontrack_projects = int((assessed_df["final_status"] == "Green").sum())
     avg_risk = round(assessed_df["risk_score"].mean(), 2)
-    avg_raid = round(assessed_df["raid_maturity_score"].mean(), 1)
+    avg_pci = round(assessed_df["pci_score"].mean(), 1)
     total_bac = float(assessed_df["budget_at_completion"].sum()) if "budget_at_completion" in assessed_df else 0
     total_eac = float(assessed_df["eac"].sum()) if "eac" in assessed_df else 0
     total_vac = float(assessed_df["vac"].sum()) if "vac" in assessed_df else 0
@@ -2015,7 +2031,7 @@ def create_portfolio_pdf_report(assessed_df, portfolio_file_name=None):
     summary_rows = [
         ["Total Projects", total_projects, "Critical Projects", critical_projects],
         ["Watchlist Projects", watchlist_projects, "On Track Projects", ontrack_projects],
-        ["Average Risk Score", avg_risk, "Average RAID Maturity", f"{avg_raid}/100"],
+        ["Average Risk Score", avg_risk, "Average Project Control Index (PCI)", f"{avg_pci}/100"],
         ["Total BAC", f"{total_bac:,.0f}", "Total EAC", f"{total_eac:,.0f}"],
         ["Total VAC", f"{total_vac:,.0f}", "", ""],
     ]
@@ -2031,7 +2047,7 @@ def create_portfolio_pdf_report(assessed_df, portfolio_file_name=None):
     story.append(Paragraph(
         f"This portfolio contains {total_projects} projects: {ontrack_projects} On Track, "
         f"{watchlist_projects} Watchlist, and {critical_projects} Critical. Average risk score is {avg_risk}, "
-        f"average RAID maturity is {avg_raid}/100, and total forecast variance at completion is {total_vac:,.0f}.",
+        f"average Project Control Index (PCI) is {avg_pci}/100, and total forecast variance at completion is {total_vac:,.0f}.",
         styles["Normal"]
     ))
     story.append(Spacer(1, 10))
@@ -2056,7 +2072,7 @@ def create_portfolio_pdf_report(assessed_df, portfolio_file_name=None):
     story.append(Spacer(1, 6))
     story.append(dataframe_to_reportlab_table(schedule_cost_matrix.reset_index(), max_rows=10, max_cols=5))
     story.append(Spacer(1, 10))
-    story.append(Image(create_matrix_chart(priority_matrix, "Recovery Priority Matrix", "RAID Maturity", "Risk Score Band"), width=470, height=285))
+    story.append(Image(create_matrix_chart(priority_matrix, "Recovery Priority Matrix", "Project Control Index (PCI)", "Risk Score Band"), width=470, height=285))
     story.append(Spacer(1, 6))
     story.append(dataframe_to_reportlab_table(priority_matrix.reset_index(), max_rows=10, max_cols=5))
 
@@ -2070,7 +2086,7 @@ def create_portfolio_pdf_report(assessed_df, portfolio_file_name=None):
     watch_cols = [
         "project_name", "project_type", "portfolio_health", "risk_score", "recovery_priority",
         "executive_escalation", "spi", "cpi", "cost_variance_percent", "schedule_delay_percent",
-        "eac", "vac", "raid_maturity_score", "open_risks_count", "open_issues_count"
+        "eac", "vac", "pci_score", "open_risks_count", "open_issues_count"
     ]
     available_cols = [c for c in watch_cols if c in assessed_df.columns]
     priority_df = assessed_df.sort_values(["final_status", "risk_score"], ascending=[False, False])[available_cols]
@@ -2178,7 +2194,7 @@ def portfolio_share_links(assessed_df, portfolio_file_name, summary_text):
     watchlist_projects = int((assessed_df["final_status"] == "Amber").sum())
     ontrack_projects = int((assessed_df["final_status"] == "Green").sum())
     avg_risk = round(assessed_df["risk_score"].mean(), 2)
-    avg_raid = round(assessed_df["raid_maturity_score"].mean(), 1)
+    avg_pci = round(assessed_df["pci_score"].mean(), 1)
     total_bac = float(assessed_df["budget_at_completion"].sum()) if "budget_at_completion" in assessed_df else 0
     total_eac = float(assessed_df["eac"].sum()) if "eac" in assessed_df else 0
     total_vac = float(assessed_df["vac"].sum()) if "vac" in assessed_df else 0
@@ -2192,7 +2208,7 @@ On Track: {ontrack_projects}
 Watchlist: {watchlist_projects}
 Critical: {critical_projects}
 Average Risk Score: {avg_risk}
-Average RAID Maturity: {avg_raid}/100
+Average Project Control Index (PCI): {avg_pci}/100
 Total BAC: {total_bac:,.0f}
 Total EAC: {total_eac:,.0f}
 Total Forecast VAC: {total_vac:,.0f}
@@ -2234,7 +2250,7 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     watchlist_projects = int((assessed_df["final_status"] == "Amber").sum())
     ontrack_projects = int((assessed_df["final_status"] == "Green").sum())
     avg_risk = round(assessed_df["risk_score"].mean(), 2)
-    avg_raid = round(assessed_df["raid_maturity_score"].mean(), 1)
+    avg_pci = round(assessed_df["pci_score"].mean(), 1)
     total_bac = float(assessed_df["budget_at_completion"].sum()) if "budget_at_completion" in assessed_df else 0
     total_eac = float(assessed_df["eac"].sum()) if "eac" in assessed_df else 0
     total_vac = float(assessed_df["vac"].sum()) if "vac" in assessed_df else 0
@@ -2248,7 +2264,7 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
 
     c5, c6, c7, c8 = st.columns(4)
     c5.metric("Average Risk Score", avg_risk)
-    c6.metric("Average RAID Maturity", f"{avg_raid}/100")
+    c6.metric("Average Project Control Index (PCI)", f"{avg_pci}/100")
     c7.metric("Total BAC", f"{total_bac:,.0f}")
     c8.metric("Total Forecast VAC", f"{total_vac:,.0f}")
 
@@ -2256,18 +2272,18 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     summary_text = (
         f"This portfolio contains {total_projects} projects: {ontrack_projects} On Track, "
         f"{watchlist_projects} Watchlist, and {critical_projects} Critical. "
-        f"Average risk score is {avg_risk}, average RAID maturity is {avg_raid}/100, "
+        f"Average risk score is {avg_risk}, average Project Control Index (PCI) is {avg_pci}/100, "
         f"and total forecast variance at completion is {total_vac:,.0f}. "
-        f"Executive attention should focus first on Critical projects and then on Watchlist projects with weak RAID governance or negative VAC."
+        f"Executive attention should focus first on Critical projects and then on Watchlist projects with weak project control discipline or negative VAC."
     )
     st.markdown(f'<div class="portfolio-summary-card">{summary_text}</div>', unsafe_allow_html=True)
 
-    section_header("Portfolio EVM Forecast & RAID Maturity", "PMBOK/EVM forecast aggregated at portfolio level")
+    section_header("Portfolio EVM Forecast & Project Control Index (PCI)", "PMBOK/EVM forecast aggregated at portfolio level")
     e1, e2, e3, e4 = st.columns(4)
     e1.metric("Total BAC", f"{total_bac:,.0f}")
     e2.metric("Total EAC", f"{total_eac:,.0f}")
     e3.metric("Total VAC", f"{total_vac:,.0f}")
-    e4.metric("Avg RAID Maturity", f"{avg_raid}/100")
+    e4.metric("Avg Project Control Index (PCI)", f"{avg_pci}/100")
     st.caption("EAC = BAC / CPI at project level. VAC = BAC - EAC. Negative VAC indicates forecast budget overrun.")
 
     section_header("Portfolio Health Charts", "Health distribution and 3D risk positioning")
@@ -2377,11 +2393,11 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
         st.dataframe(styled_dataframe(schedule_cost_matrix.reset_index().rename(columns={"index": "Schedule Performance"})), use_container_width=True)
 
     with m2:
-        st.markdown("#### Risk Score vs RAID Governance Matrix")
+        st.markdown("#### Risk Score vs Project Control Index (PCI) Matrix")
         risk_band_score = {"Low Risk": 0, "Medium Risk": 1, "High Risk": 2}
-        raid_band_score = {"Managed/Mature": 0, "Developing": 1, "Weak": 2}
+        pci_band_score = {"Excellent/Good": 0, "Needs Attention": 1, "Weak Control": 2}
         priority_severity = pd.DataFrame(
-            [[max(risk_band_score.get(row_label, 0), raid_band_score.get(col_label, 0)) for col_label in priority_matrix.columns] for row_label in priority_matrix.index],
+            [[max(risk_band_score.get(row_label, 0), pci_band_score.get(col_label, 0)) for col_label in priority_matrix.columns] for row_label in priority_matrix.index],
             index=priority_matrix.index,
             columns=priority_matrix.columns
         )
@@ -2397,11 +2413,11 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
             customdata=priority_matrix.values,
             texttemplate="<b>%{text}</b>",
             textfont={"size": 18, "color": "#FFFFFF"},
-            hovertemplate="Risk Band: %{y}<br>RAID Band: %{x}<br>Projects: %{customdata}<extra></extra>"
+            hovertemplate="Risk Band: %{y}<br>PCI Band: %{x}<br>Projects: %{customdata}<extra></extra>"
         ))
         fig_priority.update_layout(
             title="<b>Recovery Priority Matrix</b>",
-            xaxis_title="<b>RAID Maturity</b>",
+            xaxis_title="<b>Project Control Index (PCI)</b>",
             yaxis_title="<b>Risk Score Band</b>",
             paper_bgcolor="#0B0B0B",
             plot_bgcolor="#0B0B0B",
@@ -2430,7 +2446,7 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
             "spi": ":.2f",
             "cpi": ":.2f",
             "risk_score": ":.1f",
-            "raid_maturity_score": ":.1f",
+            "pci_score": ":.1f",
             "Bubble Size": False
         },
         title="<b>Schedule Delay vs Cost Variance Bubble Matrix</b>",
@@ -2459,7 +2475,7 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     watch_cols = [
         "project_name", "project_type", "portfolio_health", "risk_score", "recovery_priority",
         "executive_escalation", "spi", "cpi", "cost_variance_percent", "schedule_delay_percent",
-        "eac", "vac", "raid_maturity_score", "open_risks_count", "open_issues_count"
+        "eac", "vac", "pci_score", "open_risks_count", "open_issues_count"
     ]
     available_cols = [c for c in watch_cols if c in assessed_df.columns]
     priority_source = assessed_df.copy()
@@ -2468,7 +2484,7 @@ def render_portfolio_results(assessed_df, portfolio_file_name=None):
     st.dataframe(styled_dataframe(priority_df.head(25)), use_container_width=True)
 
     section_header("Export & Share", "Download the full portfolio PDF report or share the executive summary")
-    st.caption("The report includes executive summary, EVM forecast, RAID maturity, health charts, KPI exposure, matrix views, bubble matrix, recovery actions, and critical project watchlist.")
+    st.caption("The report includes executive summary, EVM forecast, Project Control Index (PCI), health charts, KPI exposure, matrix views, bubble matrix, recovery actions, and critical project watchlist.")
     portfolio_pdf_buffer = create_portfolio_pdf_report(assessed_df, portfolio_file_name)
     st.download_button(
         "Download PDF Report",
@@ -2789,7 +2805,7 @@ with tab_csv:
             st.warning("Please upload a CSV file first.")
         else:
             progress_placeholder = st.empty()
-            with st.spinner("Generating portfolio assessment... Please wait while ProjectRescue AI analyzes the CSV, calculates EVM forecasts, RAID maturity, matrices, and recovery actions."):
+            with st.spinner("Generating portfolio assessment... Please wait while ProjectRescue AI analyzes the CSV, calculates EVM forecasts, PCI, matrices, and recovery actions."):
                 df = pd.read_csv(uploaded_file)
                 assessed_rows = []
                 total_rows = len(df)
@@ -2964,7 +2980,7 @@ with tab_manual:
             "stakeholder_sentiment_score": stakeholder_sentiment_score
         }
 
-        with st.spinner("Generating project assessment... Please wait while ProjectRescue AI calculates health, EVM forecast, RAID maturity, KPI drivers, and recovery actions."):
+        with st.spinner("Generating project assessment... Please wait while ProjectRescue AI calculates health, EVM forecast, PCI, KPI drivers, and recovery actions."):
             st.session_state.manual_result = assess_project(manual_row)
 
     if st.session_state.manual_result is not None:
