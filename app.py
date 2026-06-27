@@ -1681,8 +1681,10 @@ def create_pdf_report(project_name, final_status, priority, timeline, escalation
     for reason in reasons:
         story.append(Paragraph(f"- {reason}", styles["Normal"]))
 
-    story.append(Spacer(1, 12))
-    story.append(Paragraph("Recommended Recovery Actions", styles["Heading2"]))
+        story.append(Spacer(1, 12))
+        action_heading = "Recommended Actions" if final_status == "Green" else "Recommended Recovery Actions"
+        story.append(Paragraph(action_heading, styles["Heading2"]))
+
     for action in actions:
         story.append(Paragraph(f"- {action}", styles["Normal"]))
 
