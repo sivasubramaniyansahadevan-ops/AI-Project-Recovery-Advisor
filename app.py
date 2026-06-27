@@ -2861,7 +2861,8 @@ with tab_manual:
                     "License Optimization",
                     "Infrastructure Refresh",
                     "Mobile App Development",
-                    "AI Adoption Program"
+                    "AI Adoption Program",
+                    "Other"
                 ]
             )
 
