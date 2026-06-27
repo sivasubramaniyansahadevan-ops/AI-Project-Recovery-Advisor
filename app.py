@@ -1010,11 +1010,20 @@ def generate_executive_narrative(row, final_status, priority, timeline):
     """Human-readable steering-committee narrative for single project assessment."""
     status = status_label(final_status)
     dims = health_breakdown(row)
-    watch_or_critical = [name for name, val in dims.items() if val in ["Amber", "Red"]]
-    stable = [name for name, val in dims.items() if val == "Green"]
+
+    # Separate operational health from PCI so a PCI Amber does not sound like
+    # the primary reason an otherwise healthy project needs recovery.
+    operational_dims = {k: v for k, v in dims.items() if k != "Project Control Index (PCI)"}
+    watch_or_critical = [name for name, val in operational_dims.items() if val in ["Amber", "Red"]]
+    stable = [name for name, val in operational_dims.items() if val == "Green"]
+    pci_status = dims.get("Project Control Index (PCI)", "Green")
 
     if watch_or_critical:
         concern_text = ", ".join(watch_or_critical[:4])
+    elif pci_status == "Amber":
+        concern_text = "minor project-control improvement opportunities"
+    elif pci_status == "Red":
+        concern_text = "project-control discipline"
     else:
         concern_text = "no major control area"
 
@@ -1189,9 +1198,12 @@ def sanity_check_status(status, row):
     severe = []
     dims = health_breakdown(row)
 
-    # These names must match the non-duplicated real-life PMO dimensions
-    # returned by health_breakdown(). This fixes the KeyError caused by
-    # old labels such as "Schedule Health" and "Cost Health".
+    # Operational dimensions drive final RAG status.
+    # PCI is a composite ProjectRescue AI control index, so an Amber PCI alone
+    # must not downgrade an otherwise healthy project to Amber.
+    # PCI Red still escalates because weak controls can materially affect delivery governance.
+    operational_dims = {k: v for k, v in dims.items() if k != "Project Control Index (PCI)"}
+
     if dims.get("Schedule Performance") == "Red":
         severe.append("Schedule performance is critical")
     if dims.get("Cost Performance") == "Red":
@@ -1205,10 +1217,15 @@ def sanity_check_status(status, row):
     if dims.get("Stakeholder Alignment") == "Red":
         severe.append("Stakeholder alignment is low")
 
-    # Never allow the final status to be lower than the worst health card.
-    worst_dim = worst_health(*dims.values())
-    if STATUS_ORDER[worst_dim] > STATUS_ORDER[status]:
-        status = worst_dim
+    # Escalate to Red if any operational dimension is Red, or if PCI is Red.
+    if any(v == "Red" for v in operational_dims.values()) or dims.get("Project Control Index (PCI)") == "Red":
+        status = "Red"
+    else:
+        # Amber should reflect real operational watchlist signals, not PCI alone.
+        # If only PCI is Amber and all operational dimensions are Green, final status remains Green.
+        operational_amber_count = sum(1 for v in operational_dims.values() if v == "Amber")
+        if operational_amber_count > 0 and STATUS_ORDER[status] < STATUS_ORDER["Amber"]:
+            status = "Amber"
 
     return status, severe
 
@@ -1239,13 +1256,21 @@ def escalation_required(status, row):
 
 def summarize_dimension_watchlist(row, status):
     dims = health_breakdown(row)
-    red_dims = [name for name, value in dims.items() if value == "Red"]
-    amber_dims = [name for name, value in dims.items() if value == "Amber"]
+    operational_dims = {k: v for k, v in dims.items() if k != "Project Control Index (PCI)"}
+
+    red_dims = [name for name, value in operational_dims.items() if value == "Red"]
+    amber_dims = [name for name, value in operational_dims.items() if value == "Amber"]
+    pci_status = dims.get("Project Control Index (PCI)", "Green")
+
+    if dims.get("Project Control Index (PCI)") == "Red":
+        red_dims.append("Project Control Index (PCI)")
 
     if red_dims:
         return f"Critical concern areas: {', '.join(red_dims)}."
     if amber_dims:
         return f"Watchlist areas: {', '.join(amber_dims)}."
+    if pci_status == "Amber":
+        return "All operational dimensions are within acceptable PMO tolerance. PCI indicates minor project-control improvement opportunities."
     return "All assessed dimensions are within acceptable PMO tolerance."
 
 
