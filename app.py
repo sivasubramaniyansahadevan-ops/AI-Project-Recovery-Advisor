@@ -1681,9 +1681,9 @@ def create_pdf_report(project_name, final_status, priority, timeline, escalation
     for reason in reasons:
         story.append(Paragraph(f"- {reason}", styles["Normal"]))
 
-        story.append(Spacer(1, 12))
-        action_heading = "Recommended Actions" if final_status == "Green" else "Recommended Recovery Actions"
-        story.append(Paragraph(action_heading, styles["Heading2"]))
+    story.append(Spacer(1, 12))
+    action_heading = "Recommended Actions" if final_status == "Green" else "Recommended Recovery Actions"
+    story.append(Paragraph(action_heading, styles["Heading2"]))
 
     for action in actions:
         story.append(Paragraph(f"- {action}", styles["Normal"]))
@@ -1823,7 +1823,8 @@ def render_result(result_row, prediction, final_status, severe_drivers, summary,
     for reason in reasons:
         st.write(f"• {reason}")
 
-    st.markdown("#### Recommended Recovery Actions")
+    action_heading = "Recommended Actions" if final_status == "Green" else "Recommended Recovery Actions"
+    st.markdown(f"#### {action_heading}")
     for action in actions:
         st.write(f"• {action}")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -1855,6 +1856,7 @@ def render_result(result_row, prediction, final_status, severe_drivers, summary,
 
     reasons_text = "\n".join([f"- {r}" for r in reasons])
     actions_text = "\n".join([f"- {a}" for a in actions])
+    action_heading = "Recommended Actions" if final_status == "Green" else "Recommended Recovery Actions"
     top_drivers_text = (
         "\n".join([
             f"- {item['Driver']}: {item['KPI Value']} ({item['Control Level']}) - {item['PMO Signal']}"
@@ -1886,7 +1888,7 @@ Top KPI Watchlist Drivers:
 Key Reasons:
 {reasons_text}
 
-Recommended Recovery Actions:
+{action_heading}:
 {actions_text}
 
 Note: The full PDF report includes visual charts. Download the PDF from ProjectRescue AI and attach it if required.
